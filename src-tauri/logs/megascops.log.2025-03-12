@@ -1,0 +1,53 @@
+2025-03-12T08:50:30.963730Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T08:50:30.965077Z  INFO megascops_lib: Elapsed time: 6.5525692s
+2025-03-12T08:51:50.322987Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T08:51:50.324003Z  INFO megascops_lib: Elapsed time: 6.5496968s
+2025-03-12T09:25:52.376439Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T09:25:52.377758Z  INFO megascops_lib: Elapsed time: 6.3662912s
+2025-03-12T09:27:04.016292Z ERROR megascops_lib: Error processing: Auth failed
+2025-03-12T09:49:51.268746Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T09:49:51.269436Z  INFO megascops_lib: Elapsed time: 6.54567s
+2025-03-12T10:59:03.362358Z ERROR megascops_lib: Error processing: Auth failed
+2025-03-12T12:33:48.710455Z ERROR megascops_lib: Error processing: Auth failed
+2025-03-12T12:45:24.049424Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T12:45:24.050534Z  INFO megascops_lib: Elapsed time: 3.8367575s
+2025-03-12T12:52:48.951761Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T12:52:48.952431Z  INFO megascops_lib: Elapsed time: 2.9157104s
+2025-03-12T12:57:01.593404Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T12:57:01.595965Z  INFO megascops_lib: Elapsed time: 2.8361663s
+2025-03-12T12:57:11.336881Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T12:57:11.337737Z  INFO megascops_lib: Elapsed time: 2.5979299s
+2025-03-12T12:57:17.634298Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T12:57:17.635220Z  INFO megascops_lib: Elapsed time: 2.391568s
+2025-03-12T12:59:03.507971Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T12:59:03.508763Z  INFO megascops_lib: Elapsed time: 2.4718626s
+2025-03-12T12:59:09.251656Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T12:59:09.252239Z  INFO megascops_lib: Elapsed time: 2.3841415s
+2025-03-12T13:02:14.306457Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T13:02:14.307175Z  INFO megascops_lib: Elapsed time: 2.900529s
+2025-03-12T13:02:17.667820Z ERROR megascops_lib: Error processing: Failed to connect to server
+2025-03-12T13:02:22.634868Z ERROR megascops_lib: Error processing: Failed to connect to server
+2025-03-12T13:02:29.102320Z ERROR megascops_lib: Error processing: Failed to connect to server
+2025-03-12T13:02:36.085159Z ERROR megascops_lib: Error processing: Failed to connect to server
+2025-03-12T13:02:45.131462Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T13:02:45.133968Z  INFO megascops_lib: Elapsed time: 2.3809254s
+2025-03-12T13:02:51.781336Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T13:02:51.781907Z  INFO megascops_lib: Elapsed time: 2.4877352s
+2025-03-12T13:03:24.072479Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T13:03:24.073060Z  INFO megascops_lib: Elapsed time: 2.4025921s
+2025-03-12T14:14:14.404242Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T14:14:14.405064Z  INFO megascops_lib: Elapsed time: 3.0766515s
+2025-03-12T15:46:33.317097Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T15:46:33.318879Z  INFO megascops_lib: Elapsed time: 2.953786s
+2025-03-12T17:19:20.116958Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T17:19:20.120812Z  INFO megascops_lib: Elapsed time: 3.1798711s
+2025-03-12T17:44:22.299323Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T17:44:22.300001Z  INFO megascops_lib: Elapsed time: 2.6029322s
+2025-03-12T17:46:02.257568Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T17:46:02.260876Z  INFO megascops_lib: Elapsed time: 2.6737187s
+2025-03-12T17:51:12.596101Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T17:51:12.597719Z  INFO megascops_lib: Elapsed time: 2.6171451s
+2025-03-12T17:57:32.217681Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T17:57:32.218485Z  INFO megascops_lib: Elapsed time: 3.0401002s
+2025-03-12T17:58:37.926536Z  INFO megascops_lib::export: Exported 21 frames
+2025-03-12T17:58:37.927377Z  INFO megascops_lib: Elapsed time: 2.8015309s

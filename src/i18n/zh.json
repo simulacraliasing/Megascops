@@ -1,0 +1,5 @@
+{
+    "folder": "媒体文件夹",
+    "iou": "NMS IoU 阈值",
+    "confidence": "NMS 置信度"
+}

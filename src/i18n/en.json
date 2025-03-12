@@ -1,0 +1,8 @@
+{
+    "folder": "Media folder",
+    "iou": "NMS IoU threshold",
+    "confidence": "NMS Confidence",
+    "url": "URL",
+    "token": "Access token",
+    "resumePath": "Resume path"
+}
