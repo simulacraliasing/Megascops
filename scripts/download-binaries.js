@@ -62,7 +62,7 @@ function getFFmpegInfo() {
     } else if (targetTriple === 'aarch64-unknown-linux-gnu') {
         return {
             url: 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-linuxarm64-lgpl-7.1.tar.xz',
-            outputPath: path.join(binaryDir, 'ffmpeg-aarch64-unknown-linux-gnu.gz'),
+            outputPath: path.join(binaryDir, 'ffmpeg-aarch64-unknown-linux-gnu.tar.xz'),
             extractDir: binaryDir
         }
     }

@@ -24,7 +24,7 @@ jobs:
             args: ''
           - platform: 'ubuntu-24.04-arm'
             args: ''
-          - platform: 'windows-latest'
+          - platform: 'windows-2025'
             args: ''
 
     runs-on: ${{ matrix.platform }}
@@ -57,7 +57,7 @@ jobs:
         run: |
           brew install protobuf
       - name: install protoc windows
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform == 'windows-2025'
         run: |
           winget install protobuf
         # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
