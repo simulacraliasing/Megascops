@@ -170,7 +170,7 @@ async function extractFile(filePath, extractDir, targetTriple) {
             // macOS typically has the ffmpeg binary directly in the zip
             const ffmpegBin = findFileRecursive(extractDir, 'ffmpeg');
             if (ffmpegBin) {
-                destPath = path.join(binaryDir, `ffmpeg-${targetTriple}`);
+                let destPath = path.join(binaryDir, `ffmpeg-${targetTriple}`);
                 copyFileSync(ffmpegBin, path.join(binaryDir, destPath));
                 console.log('Copied ffmpeg to macos directory');
 
