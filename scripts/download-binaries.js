@@ -171,7 +171,7 @@ async function extractFile(filePath, extractDir, targetTriple) {
             const ffmpegBin = findFileRecursive(extractDir, 'ffmpeg');
             if (ffmpegBin) {
                 let destPath = path.join(binaryDir, `ffmpeg-${targetTriple}`);
-                copyFileSync(ffmpegBin, path.join(binaryDir, destPath));
+                copyFileSync(ffmpegBin, destPath);
                 console.log('Copied ffmpeg to macos directory');
 
                 // Make executable
