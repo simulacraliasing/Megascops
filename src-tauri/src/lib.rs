@@ -19,7 +19,7 @@ use url::Url;
 use uuid::Uuid;
 
 use md5rs::md5rs_client::Md5rsClient;
-use md5rs::{AuthRequest, AuthResponse, DetectRequest, HealthRequest, HealthResponse};
+use md5rs::{AuthRequest, AuthResponse, DetectRequest, HealthRequest};
 
 pub mod md5rs {
     tonic::include_proto!("md5rs");
@@ -481,7 +481,11 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![process_media, check_health, check_quota])
+        .invoke_handler(tauri::generate_handler![
+            process_media,
+            check_health,
+            check_quota
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -17,9 +17,10 @@ const binaryDir = path.join(__dirname, '..', 'src-tauri', 'binaries');
 
 const rustInfo = execSync('rustc -vV');
 const targetTriple = /host: (\S+)/g.exec(rustInfo)[1];
+const extension = targetTriple === 'x86_64-pc-windows-msvc' ? '.exe' : '';
 
-const ffmpegBinary = path.join(binaryDir, `ffmpeg-${targetTriple}`);
-const organizeBinary = path.join(binaryDir, `organize-${targetTriple}`);
+const ffmpegBinary = path.join(binaryDir, `ffmpeg-${targetTriple}${extension}`);
+const organizeBinary = path.join(binaryDir, `organize-${targetTriple}${extension}`);
 
 if (!targetTriple) {
     console.error('Failed to determine platform target triple');
