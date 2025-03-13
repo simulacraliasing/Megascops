@@ -78,7 +78,9 @@ pub async fn process(
         .context("Failed to connect to server")?;
 
     let mut client = Md5rsClient::new(channel);
-    let session_token = auth(&mut client, &config.token).await?;
+    let auth_response = auth(&mut client, &config.token).await?;
+
+    let session_token = auth_response.token;
 
     cleanup_buffer(&config.buffer_path)?;
 
@@ -276,7 +278,7 @@ pub async fn process(
     Ok(())
 }
 
-async fn auth(client: &mut Md5rsClient<Channel>, token: &str) -> Result<String> {
+async fn auth(client: &mut Md5rsClient<Channel>, token: &str) -> Result<AuthResponse> {
     let response = client
         .auth(Request::new(AuthRequest {
             token: token.to_string(),
@@ -284,9 +286,30 @@ async fn auth(client: &mut Md5rsClient<Channel>, token: &str) -> Result<String> 
         .await?;
     let auth_response = response.into_inner();
     if auth_response.success {
-        Ok(auth_response.token)
+        Ok(auth_response)
     } else {
         Err(anyhow::anyhow!("Auth failed"))
+    }
+}
+
+async fn get_auth(grpc_url: String, token: String) -> Result<i32> {
+    let url = Url::parse(&grpc_url)?;
+    let host = url.host_str().unwrap();
+
+    let pem = utils::get_tls_certificate(&grpc_url)?;
+    let ca = Certificate::from_pem(pem);
+    let tls = ClientTlsConfig::new().ca_certificate(ca).domain_name(host);
+
+    let channel = Channel::from_shared(url.to_string())?
+        .tls_config(tls)?
+        .connect()
+        .await?;
+
+    let mut client = Md5rsClient::new(channel);
+
+    match auth(&mut client, &token).await {
+        Ok(response) => Ok(response.quota),
+        Err(_) => Err(anyhow::anyhow!("Auth failed")),
     }
 }
 
@@ -401,7 +424,16 @@ async fn check_health(app: AppHandle, grpc_url: String) {
 }
 
 #[tauri::command]
-async fn mock_process(app: AppHandle, config: Config) {
+async fn check_quota(app: AppHandle, grpc_url: String, token: String) {
+    if let Ok(quota) = get_auth(grpc_url, token).await {
+        app.emit("quota", quota).unwrap();
+    } else {
+        app.emit("quota", -1).unwrap();
+    }
+}
+
+#[tauri::command]
+async fn process_media(app: AppHandle, config: Config) {
     let (progress_sender, progress_receiver) = crossbeam_channel::unbounded();
 
     // let guard = log::init_logger("info".to_string(), "./megascops.log".to_string())
@@ -445,10 +477,11 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![mock_process, check_health])
+        .invoke_handler(tauri::generate_handler![process_media, check_health, check_quota])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

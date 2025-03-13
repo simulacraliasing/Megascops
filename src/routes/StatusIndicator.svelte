@@ -1,5 +1,6 @@
 <script lang="ts">
     import * as Tooltip from "$lib/components/ui/tooltip";
+    import { _ } from "svelte-i18n";
     // 定义可能的状态类型
     type StatusType = "online" | "offline" | "unknown";
 
@@ -18,17 +19,17 @@
         online: {
             dotClasses: "bg-green-500 shadow-md shadow-green-500/60",
             pulseClasses: "bg-green-500/40",
-            label: "服务正常",
+            label: $_("detect.statusAvailable"),
         },
         unknown: {
             dotClasses: "bg-slate-400",
             pulseClasses: "",
-            label: "状态未知",
+            label: $_("detect.statusUnknown"),
         },
         offline: {
             dotClasses: "bg-red-500",
             pulseClasses: "",
-            label: "服务离线",
+            label: $_("detect.statusUnavailable"),
         },
     };
 

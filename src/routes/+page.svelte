@@ -7,6 +7,7 @@
     mkdir,
   } from "@tauri-apps/plugin-fs";
   import { appConfigDir } from "@tauri-apps/api/path";
+  import { Command } from "@tauri-apps/plugin-shell";
   import { onMount } from "svelte";
   import { writable } from "svelte/store";
   import { open } from "@tauri-apps/plugin-dialog";
@@ -21,7 +22,19 @@
   import * as AlertDialog from "$lib/components/ui/alert-dialog/index";
   import { Switch } from "$lib/components/ui/switch/index";
   import { Slider } from "$lib/components/ui/slider/index";
-  import { Folder, Bolt, Play, LoaderCircle, EyeOff, Eye } from "lucide-svelte";
+  import { Badge } from "$lib/components/ui/badge/index";
+  import { Toggle } from "$lib/components/ui/toggle/index";
+  import {
+    Folder,
+    Bolt,
+    Play,
+    LoaderCircle,
+    EyeOff,
+    Eye,
+    Shapes,
+    Undo2,
+    FlaskConical,
+  } from "lucide-svelte";
   import { _ } from "svelte-i18n";
   import { getLocaleFromNavigator, init, register } from "svelte-i18n";
   import ConfigSlider from "./ConfigSlider.svelte";
@@ -29,6 +42,7 @@
 
   async function setup() {
     register("en", () => import("../i18n/en.json"));
+    register("zh-CN", () => import("../i18n/zh-CN.json"));
 
     return await Promise.allSettled([
       init({ initialLocale: getLocaleFromNavigator(), fallbackLocale: "en" }),
@@ -47,6 +61,10 @@
   let showConfig = $state(false);
   let configIconAnimating = $state(false);
   let showPassword = $state(false);
+  let guess = $state(false);
+  let isOrganizing = $state(false);
+  let isUndoOrganizing = $state(false);
+  let quota = $state("");
 
   let serviceStatus: "online" | "offline" | "unknown" = $state("unknown");
 
@@ -147,26 +165,63 @@
     console.log("Progress:", progress);
   });
 
-  listen<number>("detect-complete", (event) => {
+  listen<number>("detect-complete", async (event) => {
     let complete = event.payload;
     if (complete === 1) {
       progress = 100;
       isProcessing = false;
-      showDialog("Success", "Processing complete");
+      await checkQuota();
+      showDialog(
+        $_("dialog.title.Success"),
+        $_("dialog.message.processComplete"),
+      );
     }
   });
 
   listen<string>("detect-error", (event) => {
     let error = event.payload;
     isProcessing = false;
-    showDialog("Error", error);
+    showDialog($_("dialog.title.Error"), error);
   });
+
+  listen<number>("quota", (event) => {
+    quota = formatQuota(event.payload);
+  });
+
+  function formatQuota(quota: number): string {
+    if (quota < 1) {
+      return "unlimited";
+    }
+
+    if (quota >= 1000000000) {
+      return (quota / 1000000000).toFixed(1).replace(/\.0$/, "") + "b";
+    }
+
+    if (quota >= 1000000) {
+      return (quota / 1000000).toFixed(1).replace(/\.0$/, "") + "m";
+    }
+
+    if (quota >= 1000) {
+      return (quota / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+    }
+
+    return quota.toString();
+  }
 
   async function checkHealth() {
     try {
       await invoke("check_health", { grpcUrl: url });
     } catch (err) {
       console.error("Health check failed:", err);
+    }
+  }
+
+  async function checkQuota() {
+    try {
+      await invoke("check_quota", { grpcUrl: url, token: accessToken });
+      console.log("Quota checked");
+    } catch (err) {
+      console.error("Auth failed:", err);
     }
   }
 
@@ -201,7 +256,7 @@
 
       console.log("Starting processing with config:", config);
 
-      await invoke("mock_process", {
+      await invoke("process_media", {
         config,
       });
 
@@ -252,7 +307,6 @@
     }
   }
 
-  // Update the loadConfig function to use JSON
   async function loadConfig() {
     try {
       const configDir = await appConfigDir();
@@ -325,9 +379,81 @@
   }
   const debouncedCheckHealth = debounce(checkHealth, 800);
 
+  const debouncedCheckQuota = debounce(checkQuota, 800);
+
+  async function organize() {
+    let command;
+    let resultFile = `${selectedFolder}/result${configOptions.exportFormat === "Json" ? ".json" : ".csv"}`;
+    let logFile = `${selectedFolder}/organize.log`;
+    if (guess) {
+      command = Command.sidecar("binaries/organize", [
+        "--result",
+        resultFile,
+        "--mode",
+        "guess",
+        "--log-level",
+        "INFO",
+        "--log-file",
+        logFile,
+      ]);
+    } else {
+      command = Command.sidecar("binaries/organize", [
+        "--result",
+        resultFile,
+        "--mode",
+        "default",
+        "--log-level",
+        "INFO",
+        "--log-file",
+        logFile,
+      ]);
+    }
+    isOrganizing = true;
+    const output = await command.execute();
+    if (output.code !== 0) {
+      isOrganizing = false;
+      showDialog("Error", "Failed to organize");
+    } else {
+      isOrganizing = false;
+      showDialog("Organize", `Organize complete, see details in ${logFile}`);
+    }
+  }
+
+  async function undo() {
+    let resultFile = `${selectedFolder}/result${configOptions.exportFormat === "Json" ? ".json" : ".csv"}`;
+    let logFile = `${selectedFolder}/organize.log`;
+    let command = Command.sidecar("binaries/organize", [
+      "--result",
+      resultFile,
+      "--mode",
+      "undo",
+      "--log-level",
+      "INFO",
+      "--log-file",
+      logFile,
+    ]);
+    isUndoOrganizing = true;
+    const output = await command.execute();
+    if (output.code !== 0) {
+      isUndoOrganizing = false;
+      showDialog("Error", "Failed to undo organize");
+    } else {
+      isUndoOrganizing = false;
+      showDialog(
+        "Organize",
+        `Undo organize complete, see details in ${logFile}`,
+      );
+    }
+    console.log(output);
+  }
+
   $effect(() => {
     if (url) {
       debouncedCheckHealth();
+      debouncedCheckQuota();
+    }
+    if (accessToken) {
+      debouncedCheckQuota();
     }
   });
 
@@ -346,7 +472,7 @@
       {#if !showConfig}
         <Card.Root class="h-full w-full m-0 rounded-none shadow-none">
           <Card.Header class="flex justify-between items-center flex-row">
-            <Card.Title>Detect</Card.Title>
+            <Card.Title>{$_("title.detect")}</Card.Title>
             <Button
               variant="ghost"
               size="icon"
@@ -362,7 +488,7 @@
           <Card.Content class="flex flex-col gap-6">
             <section class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div class="flex flex-col gap-2 col-span-full">
-                <Label for="folder">{$_("folder")}</Label>
+                <Label for="folder">{$_("detect.folder")}</Label>
                 <div class="flex gap-2">
                   <Input
                     type="text"
@@ -381,7 +507,7 @@
                 </div>
               </div>
               <div class="flex flex-col gap-2 col-span-full">
-                <Label for="url">{$_("url")}</Label>
+                <Label for="url">{$_("detect.url")}</Label>
                 <div class="flex items-center gap-2">
                   <div class="flex-grow">
                     <Input
@@ -398,30 +524,35 @@
               </div>
 
               <div class="flex flex-col gap-2">
-                <Label for="access-token">{$_("token")}</Label>
-                <div class="flex gap-2">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    id="access-token"
-                    bind:value={accessToken}
-                    placeholder=""
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    class="right-0 top-0 h-full px-1 py-2 hover:bg-transparent"
-                    onclick={() => (showPassword = !showPassword)}
-                  >
-                    {#if showPassword}
-                      <Eye />
-                    {:else}
-                      <EyeOff />
-                    {/if}
-                  </Button>
+                <Label for="access-token">{$_("detect.token")}</Label>
+                <div class="flex items-center gap-2">
+                  <div class="relative flex-grow">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      id="access-token"
+                      bind:value={accessToken}
+                      placeholder=""
+                      class="pr-10 w-full"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onclick={() => (showPassword = !showPassword)}
+                    >
+                      {#if showPassword}
+                        <Eye class="h-4 w-4" />
+                      {:else}
+                        <EyeOff class="h-4 w-4" />
+                      {/if}
+                    </Button>
+                  </div>
+                  <Badge>{quota}</Badge>
                 </div>
               </div>
+
               <div class="flex flex-col gap-2">
-                <Label for="resume-path">{$_("resumePath")}</Label>
+                <Label for="resume-path">{$_("detect.resumePath")}</Label>
                 <div class="flex gap-2">
                   <Input
                     type="text"
@@ -441,33 +572,67 @@
               </div>
             </section>
             <Progress value={progress} max={100} />
-            <section class="action-buttons">
-              <Button
-                variant="ghost"
-                size="icon"
-                onclick={startProcessing}
-                disabled={isProcessing ||
-                  !selectedFolder ||
-                  !url ||
-                  !accessToken ||
-                  serviceStatus !== "online"}
+            <div class="flex items-center relative">
+              <!-- Toggle 在左侧 -->
+              <Toggle size="sm" aria-label="Toggle guess" bind:pressed={guess}>
+                <FlaskConical class="h-4 w-4" />
+              </Toggle>
+
+              <!-- 三个按钮作为整体居中 -->
+              <div
+                class="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-2"
               >
-                {#if isProcessing}
-                  <LoaderCircle
-                    class="animate-spin"
-                    style="width: 1.5rem; height: 1.5rem;"
-                  />
-                {:else}
-                  <Play style="width: 1.5rem; height: 1.5rem;" />
-                {/if}
-              </Button>
-            </section>
+                <div class="flex items-center">
+                  <Button variant="ghost" size="icon" onclick={organize}>
+                    {#if isOrganizing}
+                      <LoaderCircle
+                        class="animate-spin"
+                        style="width: 1.2rem; height: 1.2rem;"
+                      />
+                    {:else}
+                      <Shapes style="width: 1.2rem; height: 1.2rem;" />
+                    {/if}
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onclick={startProcessing}
+                    disabled={isProcessing ||
+                      !selectedFolder ||
+                      !url ||
+                      !accessToken ||
+                      serviceStatus !== "online"}
+                  >
+                    {#if isProcessing}
+                      <LoaderCircle
+                        class="animate-spin"
+                        style="width: 1.5rem; height: 1.5rem;"
+                      />
+                    {:else}
+                      <Play style="width: 1.5rem; height: 1.5rem;" />
+                    {/if}
+                  </Button>
+
+                  <Button variant="ghost" size="icon" onclick={undo}>
+                    {#if isUndoOrganizing}
+                      <LoaderCircle
+                        class="animate-spin"
+                        style="width: 1.2rem; height: 1.2rem;"
+                      />
+                    {:else}
+                      <Undo2 style="width: 1.2rem; height: 1.2rem;" />
+                    {/if}
+                  </Button>
+                </div>
+              </div>
+            </div>
           </Card.Content>
         </Card.Root>
       {:else}
         <Card.Root class="h-full w-full m-0 rounded-none shadow-none">
           <Card.Header class="flex flex-row items-center justify-between">
-            <Card.Title>Configuration</Card.Title>
+            <Card.Title>{$_("title.config")}</Card.Title>
             <Button
               variant="ghost"
               size="icon"
@@ -491,7 +656,7 @@
             >
               <ConfigSlider
                 id="confidence"
-                label="Confidence Threshold"
+                label={$_("config.confidence")}
                 min={0.1}
                 max={1}
                 step={0.05}
@@ -500,7 +665,7 @@
 
               <ConfigSlider
                 id="iou"
-                label="IoU Threshold"
+                label={$_("config.iou")}
                 min={0.1}
                 max={1}
                 step={0.05}
@@ -509,14 +674,14 @@
 
               <ConfigSlider
                 id="quality"
-                label="Quality"
+                label={$_("config.quality")}
                 min={10}
                 max={100}
                 step={5}
                 bind:value={configOptions.quality}
               />
               <div class="flex flex-col gap-3">
-                <Label for="max-frames">Max frames</Label>
+                <Label for="max-frames">{$_("config.maxFrames")}</Label>
                 <div class="flex items-center gap-2">
                   <div class="flex-grow">
                     <Slider
@@ -533,13 +698,13 @@
                   >
                   <div class="flex gap-2 w-auto items-center">
                     <Switch bind:checked={configOptions.iframeOnly} />
-                    <Label for="iframe-only">I-frame only</Label>
+                    <Label for="iframe-only">{$_("config.iframeOnly")}</Label>
                   </div>
                 </div>
               </div>
 
               <div class="config-item">
-                <Label for="export-format">Export Format</Label>
+                <Label for="export-format">{$_("config.exportFormat")}</Label>
                 <Select.Root
                   type="single"
                   bind:value={configOptions.exportFormat}
@@ -553,7 +718,7 @@
               </div>
 
               <div class="config-item">
-                <Label for="buffer-path">Buffer Path</Label>
+                <Label for="buffer-path">{$_("config.bufferPath")}</Label>
                 <div class="flex items-center gap-2">
                   <div class="flex-grow">
                     <Input
@@ -577,7 +742,7 @@
 
               <ConfigSlider
                 id="buffer-size"
-                label="Buffer size"
+                label={$_("config.bufferSize")}
                 min={0}
                 max={50}
                 step={5}
@@ -586,7 +751,7 @@
 
               <ConfigSlider
                 id="checkpoint"
-                label="Checkpoint"
+                label={$_("config.checkPoint")}
                 min={0}
                 max={1000}
                 step={50}
@@ -624,12 +789,6 @@
     background-color: #f5f5f5;
     color: #333;
     height: 100vh;
-  }
-
-  .action-buttons {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
   }
 
   @keyframes spin {

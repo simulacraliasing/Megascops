@@ -66,6 +66,7 @@ rustls-native-certs = "0.8.1"
 base64 = "0.22.1"
 rustls-pki-types = "1.11.0"
 tauri-plugin-fs = "2"
+tauri-plugin-shell = "2"
 
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.
