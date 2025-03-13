@@ -43,13 +43,13 @@ function getFFmpegInfo() {
         };
     } else if (targetTriple === 'aarch64-apple-darwin') {
         return {
-            url: 'https://www.osxexperts.net/ffmpeg71arm.zip',
+            url: 'https://github.com/simulacraliasing/ffmpeg-macos-build/releases/download/v7.1/ffmpeg71arm.zip',
             outputPath: path.join(binaryDir, 'ffmpeg-aarch64-apple-darwin.zip'),
             extractDir: binaryDir
         };
     } else if (targetTriple === 'x86_64-apple-darwin') {
         return {
-            url: 'https://www.osxexperts.net/ffmpeg71intel.zip',
+            url: 'https://github.com/simulacraliasing/ffmpeg-macos-build/releases/download/v7.1/ffmpeg71intel.zip',
             outputPath: path.join(binaryDir, 'ffmpeg-x86_64-apple-darwin.zip'),
             extractDir: binaryDir
         }

@@ -385,27 +385,35 @@
     let resultFile = `${selectedFolder}/result${configOptions.exportFormat === "Json" ? ".json" : ".csv"}`;
     let logFile = `${selectedFolder}/organize.log`;
     if (guess) {
-      command = Command.sidecar("binaries/organize", [
-        "--result",
-        resultFile,
-        "--mode",
-        "guess",
-        "--log-level",
-        "INFO",
-        "--log-file",
-        logFile,
-      ]);
+      command = Command.sidecar(
+        "binaries/organize",
+        [
+          "--result",
+          resultFile,
+          "--mode",
+          "guess",
+          "--log-level",
+          "INFO",
+          "--log-file",
+          logFile,
+        ],
+        { encoding: "utf8" },
+      );
     } else {
-      command = Command.sidecar("binaries/organize", [
-        "--result",
-        resultFile,
-        "--mode",
-        "default",
-        "--log-level",
-        "INFO",
-        "--log-file",
-        logFile,
-      ]);
+      command = Command.sidecar(
+        "binaries/organize",
+        [
+          "--result",
+          resultFile,
+          "--mode",
+          "default",
+          "--log-level",
+          "INFO",
+          "--log-file",
+          logFile,
+        ],
+        { encoding: "utf8" },
+      );
     }
     isOrganizing = true;
     const output = await command.execute();
@@ -421,16 +429,20 @@
   async function undo() {
     let resultFile = `${selectedFolder}/result${configOptions.exportFormat === "Json" ? ".json" : ".csv"}`;
     let logFile = `${selectedFolder}/organize.log`;
-    let command = Command.sidecar("binaries/organize", [
-      "--result",
-      resultFile,
-      "--mode",
-      "undo",
-      "--log-level",
-      "INFO",
-      "--log-file",
-      logFile,
-    ]);
+    let command = Command.sidecar(
+      "binaries/organize",
+      [
+        "--result",
+        resultFile,
+        "--mode",
+        "undo",
+        "--log-level",
+        "INFO",
+        "--log-file",
+        logFile,
+      ],
+      { encoding: "utf8" },
+    );
     isUndoOrganizing = true;
     const output = await command.execute();
     if (output.code !== 0) {
@@ -443,7 +455,6 @@
         `Undo organize complete, see details in ${logFile}`,
       );
     }
-    console.log(output);
   }
 
   $effect(() => {
