@@ -162,7 +162,6 @@
 
   listen<number>("detect-progress", (event) => {
     progress = event.payload;
-    console.log("Progress:", progress);
   });
 
   listen<number>("detect-complete", async (event) => {
