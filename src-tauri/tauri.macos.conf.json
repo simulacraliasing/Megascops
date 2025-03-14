@@ -1,0 +1,11 @@
+{
+    "app": {
+      "windows": [
+        {
+          "title": "Megascops",
+          "width": 660,
+          "height": 466
+        }
+      ]
+    }
+  }

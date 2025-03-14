@@ -293,7 +293,9 @@
               {/if}
             </Button>
           </div>
-          <Badge id="quota">{detectStatus.quota}</Badge>
+          <TooltipWrapper text={$_("tooltip.quota")}>
+            <Badge id="quota">{detectStatus.quota}</Badge>
+          </TooltipWrapper>
         </div>
       </div>
 

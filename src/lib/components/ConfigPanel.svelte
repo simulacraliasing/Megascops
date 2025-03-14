@@ -11,12 +11,14 @@
   import ConfigSlider from "$lib/components/ConfigSlider.svelte";
   import { toggleConfig, selectBufferFolder } from "$lib/utils";
   import { detectStatus, config } from "$lib/store.svelte";
+  import TooltipWrapper from "$lib/components/TooltipWrapper.svelte";
 </script>
 
 <Card.Root class="h-full w-full m-0 rounded-none shadow-none">
   <Card.Header class="flex flex-row items-center justify-between">
     <Card.Title>{$_("title.config")}</Card.Title>
-    <Button
+    <TooltipWrapper text={$_("tooltip.config")}>
+      <Button
       variant="ghost"
       size="icon"
       onclick={toggleConfig}
@@ -32,6 +34,7 @@
         <Bolt style="width: 1.5rem; height: 1.5rem;" />
       </div>
     </Button>
+    </TooltipWrapper>
   </Card.Header>
   <Card.Content>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 flex-1 overflow-auto">

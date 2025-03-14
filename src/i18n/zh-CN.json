@@ -53,5 +53,6 @@
     "tooltip.start": "开始检测",
     "tooltip.config": "设置",
     "tooltip.guess": "猜测模式",
-    "tooltip.help": "帮助引导"
+    "tooltip.help": "帮助引导",
+    "tooltip.quota": "剩余配额"
 }

@@ -54,5 +54,6 @@
     "tooltip.start": "Start",
     "tooltip.config": "Configuration",
     "tooltip.guess": "Guess mode",
-    "tooltip.help": "Help guide"
+    "tooltip.help": "Help guide",
+    "tooltip.quota": "Remaining quota"
 }
