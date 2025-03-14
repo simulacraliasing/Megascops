@@ -456,9 +456,6 @@ async fn check_quota(app: AppHandle, grpc_url: String, token: String) {
 async fn process_media(app: AppHandle, config: Config) {
     let (progress_sender, progress_receiver) = crossbeam_channel::unbounded();
 
-    // let guard = log::init_logger("info".to_string(), "./megascops.log".to_string())
-    //     .expect("Failed to initialize logger");
-
     let total_files = crate::utils::index_files_and_folders(&PathBuf::from(
         &config.detect_options.selected_folder,
     ))
