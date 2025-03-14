@@ -1,6 +1,11 @@
-# Tauri + SvelteKit + TypeScript
+# Megascop (A GUI implementation of [md5rs-client](https://github.com/simulacraliasing/md5rs-client))
 
-This template should help get you started developing with Tauri, SvelteKit and TypeScript in Vite.
+## Build
+
+```sh
+pnpm install
+pnpm tauri build
+```
 
 ## Recommended IDE Setup
 

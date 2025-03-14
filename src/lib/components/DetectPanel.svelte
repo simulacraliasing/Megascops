@@ -341,6 +341,8 @@
               variant="ghost"
               size="icon"
               onclick={organize}
+              disabled={detectStatus.isProcessing ||
+                !config.detectOptions.selectedFolder}
             >
               {#if detectStatus.isOrganizing}
                 <LoaderCircle
@@ -377,7 +379,14 @@
           </TooltipWrapper>
 
           <TooltipWrapper text={$_("tooltip.undo")}>
-            <Button id="undo" variant="ghost" size="icon" onclick={undo}>
+            <Button
+              id="undo"
+              variant="ghost"
+              size="icon"
+              onclick={undo}
+              disabled={detectStatus.isProcessing ||
+                !config.detectOptions.selectedFolder}
+            >
               {#if detectStatus.isUndoOrganizing}
                 <LoaderCircle
                   class="animate-spin"
