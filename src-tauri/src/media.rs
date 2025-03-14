@@ -15,7 +15,6 @@ use image::{DynamicImage, GenericImageView, ImageReader};
 use jpeg_decoder::Decoder;
 use nom_exif::{Exif, ExifIter, ExifTag, MediaParser, MediaSource};
 use thiserror::Error;
-use tracing::{debug, error, warn};
 use webp::Encoder;
 
 use crate::utils::{sample_evenly, FileItem};
@@ -95,11 +94,11 @@ fn remove_file_with_retries(file_path: &PathBuf, max_retries: u32, delay: Durati
     while attempts < max_retries {
         match std::fs::remove_file(file_path) {
             Ok(_) => {
-                debug!("File removed successfully.");
+                log::debug!("File removed successfully.");
                 return Ok(());
             }
             Err(e) => {
-                error!(
+                log::error!(
                     "Failed to remove file: {}. Attempt {} of {}",
                     e,
                     attempts + 1,
@@ -124,7 +123,7 @@ fn decode_image(file: &FileItem) -> Result<DynamicImage> {
     {
         Ok(img) => DynamicImage::ImageRgb8(img.to_rgb8()),
         Err(_e) => {
-            warn!(
+            log::warn!(
                 "Failed to decode image with ImageReader. Trying jpeg_decoder. {:?}",
                 _e
             );
@@ -190,7 +189,7 @@ pub fn process_image(
     };
     match array_q_s.send(frame_data) {
         Ok(_) => (),
-        Err(_e) => error!("Failed to send frame data, channel disconnected"),
+        Err(_e) => log::error!("Failed to send frame data, channel disconnected"),
     }
     Ok(())
 }
@@ -234,7 +233,7 @@ fn resize_encode(
             Ok(data)
         }
         Err(e) => {
-            error!("Failed to encode image: {:?}", e);
+            log::error!("Failed to encode image: {:?}", e);
             Err(MediaError::WebpEncodeError(e.to_string()).into())
         }
     }
@@ -308,12 +307,12 @@ fn handle_ffmpeg_output(
 
     for e in ffmpeg_error {
         let error = MediaError::FfmpegError(e, file_path.clone());
-        warn!("{:?}", error);
+        log::warn!("{:?}", error);
     }
 
     if frames.is_empty() {
         let error = MediaError::VideoDecodeError(file_path).into();
-        error!("{:?}", error);
+        log::error!("{:?}", error);
         let frame_data = WebpItem::ErrFile(ErrFile {
             file: file.clone(),
             error,

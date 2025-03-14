@@ -11,11 +11,11 @@
     export let unit = "";
 </script>
 
-<div class="flex flex-col gap-3">
-    <Label for={id}>{label}</Label>
+<div id={id} class="flex flex-col gap-3">
+    <Label >{label}</Label>
     <div class="flex items-center gap-2">
         <div class="flex-grow">
-            <Slider type="single" {id} {min} {max} {step} bind:value />
+            <Slider type="single" {min} {max} {step} bind:value />
         </div>
         <span class="ml-1 min-w-1 text-right">{value}{unit}</span>
     </div>

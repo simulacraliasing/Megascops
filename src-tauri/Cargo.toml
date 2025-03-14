@@ -33,14 +33,6 @@ uuid = { version = "1.11.0", features = ["v4"] }
 ffmpeg-sidecar = "2.0.2"
 image = "0.25.5"
 jpeg-decoder = "0.3.1"
-tracing = "0.1.40"
-tracing-appender = "0.2.3"
-tracing-error = "0.2.0"
-tracing-subscriber = { version = "0.3.18", features = [
-    "std",
-    "local-time",
-    "env-filter",
-] }
 walkdir = "2.5.0"
 anyhow = "1.0.90"
 chrono = { version = "0.4.38", features = ["serde"] }
@@ -67,6 +59,9 @@ base64 = "0.22.1"
 rustls-pki-types = "1.11.0"
 tauri-plugin-fs = "2"
 tauri-plugin-shell = "2"
+tauri-plugin-log = "2"
+log = "0.4"
+tauri-plugin-store = "2"
 
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.

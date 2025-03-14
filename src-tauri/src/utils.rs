@@ -11,7 +11,6 @@ use rustls::RootCertStore;
 use rustls_native_certs::load_native_certs;
 use rustls_pki_types::{CertificateDer, ServerName};
 use serde::{Deserialize, Serialize};
-use tracing::error;
 use url::Url;
 use walkdir::{DirEntry, WalkDir};
 
@@ -162,7 +161,7 @@ pub fn get_tls_certificate(url_str: &str) -> Result<String> {
             pem.push_str(&pem_content);
         }
     } else {
-        error!("No certificate found for {}", domain);
+        log::error!("No certificate found for {}", domain);
     }
 
     Ok(pem)

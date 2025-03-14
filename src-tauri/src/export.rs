@@ -6,7 +6,6 @@ use std::sync::{Arc, Mutex};
 use anyhow::Result;
 use csv::WriterBuilder;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
 use crate::utils::FileItem;
 use crate::ExportFormat;
@@ -81,7 +80,7 @@ pub fn export_worker(
                 let mut checkpoint_counter = checkpoint_counter.lock().unwrap();
                 if *checkpoint_counter % checkpoint == 0 && *checkpoint_counter != 0 {
                     let export_data = export_data.lock().unwrap();
-                    info!("Exported {} frames", export_data.len());
+                    log::info!("Exported {} frames", export_data.len());
                     match format {
                         ExportFormat::Json => write_json(&export_data, folder_path).unwrap(),
                         ExportFormat::Csv => write_csv(&export_data, folder_path).unwrap(),
@@ -160,7 +159,7 @@ pub fn export(
     export_format: &ExportFormat,
 ) -> Result<()> {
     let export_data = export_data.lock().unwrap();
-    info!("Exported {} frames", export_data.len());
+    log::info!("Exported {} frames", export_data.len());
     match export_format {
         ExportFormat::Json => {
             write_json(&export_data, folder_path)?;

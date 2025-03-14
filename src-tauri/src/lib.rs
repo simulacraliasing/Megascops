@@ -9,12 +9,11 @@ use crossbeam_channel::{bounded, unbounded};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
+use tauri_plugin_store::StoreExt;
 use tonic::{
     transport::{Certificate, Channel, ClientTlsConfig},
     Request,
 };
-use tracing::{error, info};
-use tracing_appender::non_blocking;
 use url::Url;
 use uuid::Uuid;
 
@@ -27,7 +26,6 @@ pub mod md5rs {
 
 pub mod export;
 pub mod io;
-pub mod log;
 pub mod media;
 pub mod utils;
 
@@ -36,20 +34,34 @@ pub use media::{media_worker, WebpItem};
 pub use utils::FileItem;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Config {
-    pub folder: String,
-    pub url: String,
-    pub token: String,
+#[serde(rename_all = "camelCase")]
+pub struct DetectOptions {
+    pub selected_folder: String,
+    pub grpc_url: String,
+    pub access_token: String,
+    pub resume_path: Option<String>,
+    pub guess: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigOptions {
+    pub confidence_threshold: f32,
+    pub iou_threshold: f32,
+    pub quality: f32,
+    pub export_format: ExportFormat,
     pub max_frames: Option<usize>,
     pub iframe_only: bool,
-    pub iou: f32,
-    pub conf: f32,
-    pub quality: f32,
-    pub export: ExportFormat,
-    pub checkpoint: usize,
-    pub resume_from: Option<String>,
+    pub check_point: usize,
     pub buffer_path: Option<String>,
     pub buffer_size: usize,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Config {
+    pub detect_options: DetectOptions,
+    pub config_options: ConfigOptions,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -62,10 +74,10 @@ pub async fn process(
     config: Config,
     progress_sender: crossbeam_channel::Sender<usize>,
 ) -> Result<()> {
-    let url = Url::parse(&config.url)?;
+    let url = Url::parse(&config.detect_options.grpc_url)?;
     let host = url.host_str().unwrap();
 
-    let pem = utils::get_tls_certificate(&config.url)?;
+    let pem = utils::get_tls_certificate(&config.detect_options.grpc_url)?;
     let ca = Certificate::from_pem(pem);
     let tls = ClientTlsConfig::new().ca_certificate(ca).domain_name(host);
 
@@ -78,18 +90,18 @@ pub async fn process(
         .context("Failed to connect to server")?;
 
     let mut client = Md5rsClient::new(channel);
-    let auth_response = auth(&mut client, &config.token).await?;
+    let auth_response = auth(&mut client, &config.detect_options.access_token).await?;
 
     let session_token = auth_response.token;
 
-    cleanup_buffer(&config.buffer_path)?;
+    cleanup_buffer(&config.config_options.buffer_path)?;
 
-    if config.checkpoint == 0 {
-        error!("Checkpoint should be greater than 0");
+    if config.config_options.check_point == 0 {
+        log::error!("Checkpoint should be greater than 0");
         return Ok(());
     }
 
-    let folder_path = std::path::PathBuf::from(&config.folder);
+    let folder_path = std::path::PathBuf::from(&config.detect_options.selected_folder);
     let folder_path = std::fs::canonicalize(folder_path)?;
 
     let imgsz = 1280;
@@ -100,7 +112,7 @@ pub async fn process(
     let export_data = Arc::new(Mutex::new(Vec::new()));
     let frames = Arc::new(Mutex::new(HashMap::<String, ExportFrame>::new()));
 
-    let file_paths = match config.resume_from {
+    let file_paths = match config.detect_options.resume_path {
         Some(checkpoint_path) => {
             let all_files =
                 resume_from_checkpoint(&checkpoint_path, &mut file_paths, &export_data)?;
@@ -110,12 +122,12 @@ pub async fn process(
     };
 
     let (media_q_s, media_q_r) = bounded(8);
-    let (io_q_s, io_q_r) = bounded(config.buffer_size);
+    let (io_q_s, io_q_r) = bounded(config.config_options.buffer_size);
     let (export_q_s, export_q_r) = unbounded();
     let checkpoint_counter = Arc::new(Mutex::new(0 as usize));
     let progress_sender_clone = progress_sender.clone();
 
-    let buffer_path = config.buffer_path.clone();
+    let buffer_path = config.config_options.buffer_path.clone();
     let folder_path_clone = folder_path.clone();
     let export_data_clone = Arc::clone(&export_data);
     let finish = Arc::new(Mutex::new(false));
@@ -126,9 +138,9 @@ pub async fn process(
         let folder_path = folder_path.clone();
         let checkpoint_counter = Arc::clone(&checkpoint_counter);
         export_worker(
-            config.checkpoint,
+            config.config_options.check_point,
             &checkpoint_counter,
-            &config.export,
+            &config.config_options.export_format,
             &folder_path,
             export_q_r,
             &export_data,
@@ -153,9 +165,9 @@ pub async fn process(
                 media_worker(
                     file,
                     imgsz,
-                    config.quality,
-                    config.iframe_only,
-                    config.max_frames,
+                    config.config_options.quality,
+                    config.config_options.iframe_only,
+                    config.config_options.max_frames,
                     media_q_s.clone(),
                     progress_sender_clone.clone(),
                 );
@@ -168,9 +180,9 @@ pub async fn process(
                 media_worker(
                     file.clone(),
                     imgsz,
-                    config.quality,
-                    config.iframe_only,
-                    config.max_frames,
+                    config.config_options.quality,
+                    config.config_options.iframe_only,
+                    config.config_options.max_frames,
                     media_q_s.clone(),
                     progress_sender_clone.clone(),
                 );
@@ -196,7 +208,7 @@ pub async fn process(
                         error: None,
                     };
                     frames_clone.lock().unwrap().insert(uuid.clone(), export_frame);
-                    yield DetectRequest { uuid, image: frame.webp, width: frame.width as i32, height: frame.height as i32, iou: config.iou, score: config.conf };
+                    yield DetectRequest { uuid, image: frame.webp, width: frame.width as i32, height: frame.height as i32, iou: config.config_options.iou_threshold, score: config.config_options.confidence_threshold };
                 }
                 WebpItem::ErrFile(file) => {
                     export_q_s_clone.send(ExportFrame {
@@ -222,8 +234,8 @@ pub async fn process(
     let mut inbound = match response {
         Ok(response) => response.into_inner(),
         Err(status) => {
-            error!("{}", status.message());
-            cleanup_buffer(&config.buffer_path)?;
+            log::error!("{}", status.message());
+            cleanup_buffer(&config.config_options.buffer_path)?;
             return Ok(());
         }
     };
@@ -257,24 +269,32 @@ pub async fn process(
                 while !*finish_clone.lock().unwrap() {
                     thread::sleep(Duration::from_millis(100));
                 }
-                export::export(&folder_path_clone, export_data_clone, &config.export)?;
-                cleanup_buffer(&config.buffer_path)?;
+                export::export(
+                    &folder_path_clone,
+                    export_data_clone,
+                    &config.config_options.export_format,
+                )?;
+                cleanup_buffer(&config.config_options.buffer_path)?;
                 break;
             }
             Err(e) => {
-                error!("Error receiving detection: {}", e);
+                log::error!("Error receiving detection: {}", e);
                 drop(export_q_s);
                 while !*finish_clone.lock().unwrap() {
                     thread::sleep(Duration::from_millis(100));
                 }
-                export::export(&folder_path_clone, export_data_clone, &config.export)?;
-                cleanup_buffer(&config.buffer_path)?;
+                export::export(
+                    &folder_path_clone,
+                    export_data_clone,
+                    &config.config_options.export_format,
+                )?;
+                cleanup_buffer(&config.config_options.buffer_path)?;
                 break;
             }
         }
     }
 
-    info!("Elapsed time: {:?}", start.elapsed());
+    log::info!("Elapsed time: {:?}", start.elapsed());
     Ok(())
 }
 
@@ -361,18 +381,18 @@ fn resume_from_checkpoint<'a>(
 ) -> Result<&'a mut HashSet<FileItem>> {
     let checkpoint = Path::new(checkpoint_path);
     if !checkpoint.exists() {
-        error!("Checkpoint file does not exist");
+        log::error!("Checkpoint file does not exist");
         return Err(anyhow::anyhow!("Checkpoint file does not exist"));
     }
     if !checkpoint.is_file() {
-        error!("Checkpoint path is not a file");
+        log::error!("Checkpoint path is not a file");
         return Err(anyhow::anyhow!("Checkpoint path is not a file"));
     }
     match checkpoint.extension() {
         Some(ext) => {
             let ext = ext.to_str().unwrap();
             if ext != "json" && ext != "csv" {
-                error!("Invalid checkpoint file extension: {}", ext);
+                log::error!("Invalid checkpoint file extension: {}", ext);
                 return Err(anyhow::anyhow!(
                     "Invalid checkpoint file extension: {}",
                     ext
@@ -408,7 +428,7 @@ fn resume_from_checkpoint<'a>(
             }
         }
         None => {
-            error!("Invalid checkpoint file extension");
+            log::error!("Invalid checkpoint file extension");
             return Err(anyhow::anyhow!("Invalid checkpoint file extension"));
         }
     }
@@ -439,7 +459,10 @@ async fn process_media(app: AppHandle, config: Config) {
     // let guard = log::init_logger("info".to_string(), "./megascops.log".to_string())
     //     .expect("Failed to initialize logger");
 
-    let total_files = crate::utils::index_files_and_folders(&PathBuf::from(&config.folder)).len();
+    let total_files = crate::utils::index_files_and_folders(&PathBuf::from(
+        &config.detect_options.selected_folder,
+    ))
+    .len();
 
     let app_clone = app.clone();
 
@@ -459,7 +482,7 @@ async fn process_media(app: AppHandle, config: Config) {
         }
         Err(e) => {
             app.emit("detect-error", e.to_string()).unwrap();
-            error!("Error processing: {}", e);
+            log::error!("Error processing: {}", e);
         }
     }
     progress_thread.join().unwrap();
@@ -467,16 +490,14 @@ async fn process_media(app: AppHandle, config: Config) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    static mut LOGGER_GUARD: Option<non_blocking::WorkerGuard> = None;
-
-    unsafe {
-        LOGGER_GUARD = Some(
-            log::init_logger("info".to_string(), "./megascops.log".to_string())
-                .expect("Failed to initialize logger"),
-        );
-    }
-
     tauri::Builder::default()
+        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .filter(|metadata| metadata.target() != "hyper")
+                .build(),
+        )
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
@@ -486,6 +507,10 @@ pub fn run() {
             check_health,
             check_quota
         ])
+        .setup(|app| {
+            let _ = app.store("store.json")?;
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
