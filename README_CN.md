@@ -16,8 +16,9 @@ Megascops基于以下技术:
 
 ## 开始使用
 您可以从[发布页面](https://github.com/simulacraliasing/Megascops/releases)下载适用于您平台的安装程序。
+
 应用截图：
-![](https://github.com/simulacraliasing/Megascops/blob/static/screenshot.png)
+![](https://github.com/simulacraliasing/Megascops/blob/main/static/Screenshot.png)
 
 您可以点击问号按钮开始引导，了解如何使用该应用。
 

@@ -16,8 +16,9 @@ The server side model detection is based on:
 
 ## Getting Started
 You can download installer of your platform from [release](https://github.com/simulacraliasing/Megascops/releases).
+
 App screenshot:
-![](https://github.com/simulacraliasing/Megascops/blob/static/screenshot.png)
+![](https://github.com/simulacraliasing/Megascops/blob/main/static/Screenshot.png)
 
 You can click question mark button to start a tour to know how to use the app.
 
