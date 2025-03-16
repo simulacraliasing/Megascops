@@ -7,12 +7,12 @@
     showDialog,
     closeDialog,
     setupI18n,
-    formatQuota,
     checkHealth,
     checkQuota,
     loadConfig,
     debouncedCheckHealth,
     debouncedCheckQuota,
+    openSelectedFolder,
   } from "$lib/utils";
   import { dialogConfig, detectStatus, config } from "$lib/store.svelte";
   import { DetectPanel, ConfigPanel } from "$lib/components";
@@ -50,7 +50,7 @@
   });
 
   listen<number>("quota", (event) => {
-    detectStatus.quota = formatQuota(event.payload);
+    detectStatus.quota = event.payload;
   });
 
   $effect(() => {
@@ -93,6 +93,9 @@
         </AlertDialog.Description>
       </AlertDialog.Header>
       <AlertDialog.Footer>
+        <AlertDialog.Action onclick={openSelectedFolder} class="mr-2"
+          >{$_("dialog.button.openMediaFolder")}</AlertDialog.Action
+        >
         <AlertDialog.Action onclick={closeDialog}>OK</AlertDialog.Action>
       </AlertDialog.Footer>
     </AlertDialog.Content>

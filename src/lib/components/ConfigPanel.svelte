@@ -106,7 +106,7 @@
               type="text"
               readonly
               bind:value={config.configOptions.bufferPath}
-              placeholder="No folder selected"
+              placeholder={$_("detect.folderPlaceholder")}
             />
           </div>
           <Button

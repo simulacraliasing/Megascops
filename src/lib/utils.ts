@@ -5,10 +5,18 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { init, register, getLocaleFromNavigator } from "svelte-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
-import { Command } from "@tauri-apps/plugin-shell";
+import { Command, open as openFile } from "@tauri-apps/plugin-shell";
+import { unwrapFunctionStore, format } from "svelte-i18n";
+
+const $format = unwrapFunctionStore(format);
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
+}
+
+export const openSelectedFolder = () => {
+	openFile(config.detectOptions.selectedFolder);
+	closeDialog();
 }
 
 export const showDialog = (title: string, description: string) => {
@@ -85,7 +93,11 @@ export const selectBufferFolder = () => selectPath({
 	targetKey: "bufferPath"
 });
 
-export function formatQuota(quota: number): string {
+export function formatQuota(quota?: number): string {
+	if (!quota) {
+		return "invalid";
+	}
+
 	if (quota < 1) {
 		return "unlimited";
 	}
@@ -218,10 +230,10 @@ export async function organize() {
 	const output = await command.execute();
 	if (output.code !== 0) {
 		detectStatus.isOrganizing = false;
-		showDialog("Error", "Failed to organize");
+		showDialog($format("dialog.title.Error"), `${$format("dialog.message.organizeFailed")}${logFile}`);
 	} else {
 		detectStatus.isOrganizing = false;
-		showDialog("Organize", `Organize complete, see details in ${logFile}`);
+		showDialog($format("dialog.title.Organize"), `${$format("dialog.message.organizeComplete")}${logFile}`);
 	}
 }
 
@@ -246,12 +258,12 @@ export async function undo() {
 	const output = await command.execute();
 	if (output.code !== 0) {
 		detectStatus.isUndoOrganizing = false;
-		showDialog("Error", "Failed to undo organize");
+		showDialog($format("dialog.title.Error"), `${$format("dialog.message.undoFailed")}${logFile}`);
 	} else {
 		detectStatus.isUndoOrganizing = false;
 		showDialog(
-			"Organize",
-			`Undo organize complete, see details in ${logFile}`,
+			$format("dialog.title.Undo"),
+			`${$format("dialog.message.undoComplete")}${logFile}`,
 		);
 	}
 }

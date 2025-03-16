@@ -14,7 +14,7 @@ export let detectStatus = $state({
     showPassword: false,
     isOrganizing: false,
     isUndoOrganizing: false,
-    quota: "",
+    quota: 0,
     serviceStatus: "unknown" as "online" | "offline" | "unknown",
 });
 

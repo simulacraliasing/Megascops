@@ -70,7 +70,7 @@ pub enum ExportFormat {
     Csv,
 }
 
-pub async fn process(
+async fn process(
     config: Config,
     progress_sender: crossbeam_channel::Sender<usize>,
 ) -> Result<()> {
@@ -448,13 +448,13 @@ async fn check_quota(app: AppHandle, grpc_url: String, token: String) {
     if let Ok(quota) = get_auth(grpc_url, token).await {
         app.emit("quota", quota).unwrap();
     } else {
-        app.emit("quota", -1).unwrap();
+        app.emit("quota", None::<i32>).unwrap();
     }
 }
 
 #[tauri::command]
 async fn process_media(app: AppHandle, config: Config) {
-    let (progress_sender, progress_receiver) = crossbeam_channel::unbounded();
+    let (progress_sender, progress_receiver) = crossbeam_channel::bounded(5);
 
     let total_files = crate::utils::index_files_and_folders(&PathBuf::from(
         &config.detect_options.selected_folder,

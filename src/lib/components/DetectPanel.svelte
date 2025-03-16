@@ -1,7 +1,7 @@
 <script lang="ts">
+  import { open } from "@tauri-apps/plugin-shell";
   import { Badge } from "$lib/components/ui/badge/index";
   import { Toggle } from "$lib/components/ui/toggle/index";
-  import { Progress } from "$lib/components/ui/progress/index";
   import * as Card from "$lib/components/ui/card/index";
   import { Label } from "$lib/components/ui/label/index";
   import { Button } from "$lib/components/ui/button";
@@ -20,6 +20,8 @@
     Undo2,
     FlaskConical,
     CircleHelp,
+    Clock,
+    Github,
   } from "lucide-svelte";
   import {
     selectFolder,
@@ -28,12 +30,86 @@
     organize,
     undo,
     toggleConfig,
+    formatQuota,
   } from "$lib/utils";
   import { detectStatus, config } from "$lib/store.svelte";
   import Shepherd from "shepherd.js";
   import "../../shepherd.css";
   import { offset } from "@floating-ui/dom";
-  import TooltipContent from "./ui/tooltip/tooltip-content.svelte";
+  import { onMount, onDestroy } from "svelte";
+
+  let elapsedTime = $state("00:00:00");
+  let remainingTime = $state("");
+  let timerInterval: ReturnType<typeof setInterval> | null = null;
+  let startTime: number | null = null;
+  let lastProgress = 0;
+
+  // Format seconds into HH:MM:SS
+  function formatTime(seconds: number): string {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+
+    return [hours, minutes, secs]
+      .map((v) => v.toString().padStart(2, "0"))
+      .join(":");
+  }
+
+  // Start timer when processing begins
+  function startTimer() {
+    if (timerInterval) return;
+
+    startTime = Date.now();
+    lastProgress = detectStatus.progress;
+
+    timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime!) / 1000);
+      elapsedTime = formatTime(elapsed);
+
+      // 计算剩余时间
+      const currentProgress = detectStatus.progress;
+      if (currentProgress > 0 && currentProgress > lastProgress) {
+        // 计算处理速度 (进度百分比/秒)
+        const progressRate = currentProgress / elapsed;
+        if (progressRate > 0) {
+          // 计算剩余秒数
+          const remainingSeconds = Math.max(
+            0,
+            Math.floor((100 - currentProgress) / progressRate),
+          );
+          remainingTime = formatTime(remainingSeconds);
+        }
+      }
+      lastProgress = currentProgress;
+    }, 1000);
+  }
+
+  function stopTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      remainingTime = "";
+    }
+  }
+
+  async function handleStartProcessing() {
+    startTimer();
+    await startProcessing();
+  }
+
+  // Clean up on component destroy
+  onDestroy(() => {
+    stopTimer();
+  });
+
+  // Watch for changes in processing status
+  $effect(() => {
+    if (!detectStatus.isProcessing && timerInterval) {
+      stopTimer();
+    }
+  });
+
+  const formattedQuota = $derived(formatQuota(detectStatus.quota));
 
   interface SimpleTourStepConfig {
     id: string;
@@ -195,12 +271,21 @@
   function startTour() {
     tour.start();
   }
+
+  function openGithub() {
+    open('https://github.com/simulacraliasing/Megascops');
+  }
 </script>
 
 <Card.Root class="h-full w-full m-0 rounded-none shadow-none">
   <Card.Header class="flex justify-between items-center flex-row">
     <Card.Title>{$_("title.detect")}</Card.Title>
     <div>
+      <TooltipWrapper text={$_("tooltip.github")}>
+        <Button id="github" variant="ghost" size="icon" onclick={openGithub}>
+          <Github style="width: 1.5rem; height: 1.5rem;" /></Button
+        >
+      </TooltipWrapper>
       <TooltipWrapper text={$_("tooltip.help")}>
         <Button
           id="help"
@@ -241,7 +326,7 @@
             type="text"
             id="folder"
             bind:value={config.detectOptions.selectedFolder}
-            placeholder="No folder selected"
+            placeholder={$_("detect.folderPlaceholder")}
           />
           <Button
             variant="outline"
@@ -260,7 +345,6 @@
             <Input
               type="text"
               bind:value={config.detectOptions.grpcUrl}
-              placeholder=""
             />
           </div>
           <div id="service-status" class="m-3">
@@ -293,8 +377,15 @@
               {/if}
             </Button>
           </div>
-          <TooltipWrapper text={$_("tooltip.quota")}>
-            <Badge id="quota">{detectStatus.quota}</Badge>
+          <TooltipWrapper
+            text={formattedQuota !== "invalid"
+              ? `${$_("tooltip.quota")}: ${detectStatus.quota}`
+              : $_("tooltip.tokenInvalid")}
+          >
+            <Badge
+              variant={formattedQuota === "invalid" ? "destructive" : "default"}
+              id="quota">{formattedQuota}</Badge
+            >
           </TooltipWrapper>
         </div>
       </div>
@@ -305,7 +396,7 @@
           <Input
             type="text"
             bind:value={config.detectOptions.resumePath}
-            placeholder="No file selected"
+            placeholder={$_("detect.resumePathPlaceholder")}
           />
           <Button
             variant="outline"
@@ -318,10 +409,35 @@
         </div>
       </div>
     </section>
-    <div id="progress">
-      <Progress value={detectStatus.progress} max={100} />
+    <div id="progress" class="mb-0 relative">
+      <!-- 进度条 -->
+      <div class="h-5 bg-muted rounded-full overflow-hidden">
+        <div
+          class="h-5 bg-primary flex items-center justify-center transition-all duration-300 ease-out"
+          style="width: {detectStatus.progress}%"
+        >
+          <span class="text-xs font-medium text-primary-foreground">
+            {Math.round(detectStatus.progress)}%
+          </span>
+        </div>
+      </div>
+
+      <!-- 时间信息 -->
+      <div class="flex justify-between mt-2 text-xs text-muted-foreground">
+        <div class="flex items-center gap-1">
+          <Clock class="h-3 w-3" />
+          <span>{elapsedTime}</span>
+        </div>
+
+        {#if remainingTime !== ""}
+          <div>
+            {$_("detect.remainTime")}
+            {remainingTime}
+          </div>
+        {/if}
+      </div>
     </div>
-    <div class="flex items-center relative">
+    <div class="flex items-center relative -mt-2">
       <TooltipWrapper text={$_("tooltip.guess")}>
         <Toggle
           id="guess"
@@ -362,7 +478,7 @@
               id="start"
               variant="ghost"
               size="icon"
-              onclick={startProcessing}
+              onclick={handleStartProcessing}
               disabled={detectStatus.isProcessing ||
                 !config.detectOptions.selectedFolder ||
                 !config.detectOptions.grpcUrl ||
