@@ -26,9 +26,7 @@
     >
       <div
         class={detectStatus.configIconAnimating
-          ? !detectStatus.showConfig
-            ? "spin-animation-open"
-            : "spin-animation-close"
+          ? "spin-animation-close"
           : ""}
       >
         <Bolt style="width: 1.5rem; height: 1.5rem;" />
@@ -167,12 +165,8 @@
       transform: rotate(0deg);
     }
     100% {
-      transform: rotate(-180deg);
+      transform: rotate(180deg);
     }
-  }
-
-  .spin-animation-open {
-    animation: spin-open 0.5s ease-in-out;
   }
 
   .spin-animation-close {

@@ -420,7 +420,7 @@
       transform: rotate(0deg);
     }
     100% {
-      transform: rotate(180deg);
+      transform: rotate(-180deg);
     }
   }
 
