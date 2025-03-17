@@ -19,19 +19,17 @@
     <Card.Title>{$_("title.config")}</Card.Title>
     <TooltipWrapper text={$_("tooltip.config")}>
       <Button
-      variant="ghost"
-      size="icon"
-      onclick={toggleConfig}
-      class="config-button"
-    >
-      <div
-        class={detectStatus.configIconAnimating
-          ? "spin-animation-close"
-          : ""}
+        variant="ghost"
+        size="icon"
+        onclick={toggleConfig}
+        class="config-button"
       >
-        <Bolt style="width: 1.5rem; height: 1.5rem;" />
-      </div>
-    </Button>
+        <div
+          class={detectStatus.configIconAnimating ? "spin-animation-close" : ""}
+        >
+          <Bolt style="width: 1.5rem; height: 1.5rem;" />
+        </div>
+      </Button>
     </TooltipWrapper>
   </Card.Header>
   <Card.Content>
@@ -104,7 +102,6 @@
           <div class="flex-grow">
             <Input
               type="text"
-              readonly
               bind:value={config.configOptions.bufferPath}
               placeholder={$_("detect.folderPlaceholder")}
             />
