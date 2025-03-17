@@ -70,24 +70,50 @@ pub enum ExportFormat {
     Csv,
 }
 
-async fn process(
-    config: Config,
-    progress_sender: crossbeam_channel::Sender<usize>,
-) -> Result<()> {
-    let url = Url::parse(&config.detect_options.grpc_url)?;
-    let host = url.host_str().unwrap();
-
-    let pem = utils::get_tls_certificate(&config.detect_options.grpc_url)?;
-    let ca = Certificate::from_pem(pem);
-    let tls = ClientTlsConfig::new().ca_certificate(ca).domain_name(host);
-
-    let channel = Channel::from_shared(url.to_string())
-        .context("Invalid URL")?
-        .tls_config(tls)
-        .context("Failed to configure TLS")?
+async fn create_grpc_client(grpc_url: &str) -> Result<Channel> {
+    let url = Url::parse(grpc_url)?;
+    
+    // 创建 channel builder
+    let mut channel_builder = Channel::from_shared(url.to_string())
+        .context("Invalid URL")?;
+    
+    // 仅在 HTTPS 时应用 TLS 配置
+    if url.scheme() == "https" {
+        let host = url.host_str()
+            .ok_or_else(|| anyhow::anyhow!("Missing host in URL"))?;
+        
+        // 检查主机是否为 IP 地址
+        let is_ip_addr = host.parse::<std::net::IpAddr>().is_ok();
+        
+        // 获取 TLS 证书并配置 TLS
+        let pem = utils::get_tls_certificate(grpc_url)?;
+        let ca = Certificate::from_pem(pem);
+        
+        // 对 IP 地址可能需要特殊处理域名验证
+        let tls = if is_ip_addr {
+            ClientTlsConfig::new()
+                .ca_certificate(ca)
+                .domain_name(host) // 仍然需要 SNI
+        } else {
+            ClientTlsConfig::new()
+                .ca_certificate(ca)
+                .domain_name(host)
+        };
+        
+        channel_builder = channel_builder
+            .tls_config(tls)
+            .context("Failed to configure TLS")?;
+    }
+    
+    // 连接到服务器
+    channel_builder
         .connect()
         .await
-        .context("Failed to connect to server")?;
+        .context("Failed to connect to server")
+}
+
+async fn process(config: Config, progress_sender: crossbeam_channel::Sender<usize>) -> Result<()> {
+    let channel = create_grpc_client(&config.detect_options.grpc_url).await?;
 
     let mut client = Md5rsClient::new(channel);
     let auth_response = auth(&mut client, &config.detect_options.access_token).await?;
@@ -313,18 +339,7 @@ async fn auth(client: &mut Md5rsClient<Channel>, token: &str) -> Result<AuthResp
 }
 
 async fn get_auth(grpc_url: String, token: String) -> Result<i32> {
-    let url = Url::parse(&grpc_url)?;
-    let host = url.host_str().unwrap();
-
-    let pem = utils::get_tls_certificate(&grpc_url)?;
-    let ca = Certificate::from_pem(pem);
-    let tls = ClientTlsConfig::new().ca_certificate(ca).domain_name(host);
-
-    let channel = Channel::from_shared(url.to_string())?
-        .tls_config(tls)?
-        .connect()
-        .await?;
-
+    let channel = create_grpc_client(&grpc_url).await?;
     let mut client = Md5rsClient::new(channel);
 
     match auth(&mut client, &token).await {
@@ -339,23 +354,13 @@ async fn health(client: &mut Md5rsClient<Channel>) -> Result<()> {
     if health_response.status {
         Ok(())
     } else {
+        log::error!("Health check failed");
         Err(anyhow::anyhow!("Check failed"))
     }
 }
 
 async fn get_health(grpc_url: String) -> Result<bool> {
-    let url = Url::parse(&grpc_url)?;
-    let host = url.host_str().unwrap();
-
-    let pem = utils::get_tls_certificate(&grpc_url)?;
-    let ca = Certificate::from_pem(pem);
-    let tls = ClientTlsConfig::new().ca_certificate(ca).domain_name(host);
-
-    let channel = Channel::from_shared(url.to_string())?
-        .tls_config(tls)?
-        .connect()
-        .await?;
-
+    let channel = create_grpc_client(&grpc_url).await?;
     let mut client = Md5rsClient::new(channel);
 
     match health(&mut client).await {
@@ -436,10 +441,16 @@ fn resume_from_checkpoint<'a>(
 
 #[tauri::command]
 async fn check_health(app: AppHandle, grpc_url: String) {
-    if let Ok(health) = get_health(grpc_url).await {
-        app.emit("health-status", health).unwrap();
-    } else {
-        app.emit("health-status", false).unwrap();
+    match get_health(grpc_url).await {
+        Ok(health) => {
+            app.emit("health-status", health).unwrap();
+        }
+        Err(err) => {
+            // Log the error
+            log::error!("Health check failed: {}", err);
+
+            app.emit("health-status", false).unwrap();
+        }
     }
 }
 
