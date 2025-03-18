@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import { listen } from "@tauri-apps/api/event";
     import * as AlertDialog from "$lib/components/ui/alert-dialog/index";
-    import { _ } from "svelte-i18n";
+    import { _, isLoading } from "svelte-i18n";
     import {
         showDialog,
         closeDialog,
@@ -76,13 +76,17 @@
 </script>
 
 <main class="flex flex-col h-screen w-full">
-    <div class="relative flex-1 overflow-auto">
-        {#if !detectStatus.showConfig}
-            <DetectPanel />
-        {:else}
-            <ConfigPanel />
-        {/if}
-    </div>
+    {#if $isLoading}
+        Please wait...
+    {:else}
+        <div class="relative flex-1 overflow-auto">
+            {#if !detectStatus.showConfig}
+                <DetectPanel />
+            {:else}
+                <ConfigPanel />
+            {/if}
+        </div>
+    {/if}
     <!-- <p style="color: red">{error.message}</p> -->
     <AlertDialog.Root open={dialogConfig.isOpen} onOpenChange={closeDialog}>
         <AlertDialog.Content>
