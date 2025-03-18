@@ -72,39 +72,35 @@ pub enum ExportFormat {
 
 async fn create_grpc_client(grpc_url: &str) -> Result<Channel> {
     let url = Url::parse(grpc_url)?;
-    
+
     // 创建 channel builder
-    let mut channel_builder = Channel::from_shared(url.to_string())
-        .context("Invalid URL")?;
-    
+    let mut channel_builder = Channel::from_shared(url.to_string()).context("Invalid URL")?;
+
     // 仅在 HTTPS 时应用 TLS 配置
     if url.scheme() == "https" {
-        let host = url.host_str()
+        let host = url
+            .host_str()
             .ok_or_else(|| anyhow::anyhow!("Missing host in URL"))?;
-        
+
         // 检查主机是否为 IP 地址
         let is_ip_addr = host.parse::<std::net::IpAddr>().is_ok();
-        
+
         // 获取 TLS 证书并配置 TLS
         let pem = utils::get_tls_certificate(grpc_url)?;
         let ca = Certificate::from_pem(pem);
-        
+
         // 对 IP 地址可能需要特殊处理域名验证
         let tls = if is_ip_addr {
-            ClientTlsConfig::new()
-                .ca_certificate(ca)
-                .domain_name(host) // 仍然需要 SNI
+            ClientTlsConfig::new().ca_certificate(ca).domain_name(host) // 仍然需要 SNI
         } else {
-            ClientTlsConfig::new()
-                .ca_certificate(ca)
-                .domain_name(host)
+            ClientTlsConfig::new().ca_certificate(ca).domain_name(host)
         };
-        
+
         channel_builder = channel_builder
             .tls_config(tls)
             .context("Failed to configure TLS")?;
     }
-    
+
     // 连接到服务器
     channel_builder
         .connect()
@@ -133,16 +129,21 @@ async fn process(config: Config, progress_sender: crossbeam_channel::Sender<usiz
     let imgsz = 1280;
     let start = Instant::now();
 
-    let mut file_paths = utils::index_files_and_folders(&folder_path);
+    let mut file_paths = utils::index_files_and_folders(&folder_path)?;
 
     let export_data = Arc::new(Mutex::new(Vec::new()));
     let frames = Arc::new(Mutex::new(HashMap::<String, ExportFrame>::new()));
 
     let file_paths = match config.detect_options.resume_path {
         Some(checkpoint_path) => {
-            let all_files =
-                resume_from_checkpoint(&checkpoint_path, &mut file_paths, &export_data)?;
-            all_files.to_owned()
+            let resume_path = &checkpoint_path.trim().to_string();
+            if resume_path != "" {
+                let all_files =
+                    resume_from_checkpoint(&resume_path, &mut file_paths, &export_data)?;
+                all_files.to_owned()
+            } else {
+                file_paths
+            }
         }
         None => file_paths,
     };
@@ -467,10 +468,20 @@ async fn check_quota(app: AppHandle, grpc_url: String, token: String) {
 async fn process_media(app: AppHandle, config: Config) {
     let (progress_sender, progress_receiver) = crossbeam_channel::bounded(5);
 
-    let total_files = crate::utils::index_files_and_folders(&PathBuf::from(
+    let total_files;
+
+    match crate::utils::index_files_and_folders(&PathBuf::from(
         &config.detect_options.selected_folder,
-    ))
-    .len();
+    )) {
+        Ok(files) => {
+            total_files = files.len();
+        }
+        Err(e) => {
+            log::error!("{}", e);
+            app.emit("detect-error", e.to_string()).unwrap();
+            return;
+        }
+    }
 
     let app_clone = app.clone();
 

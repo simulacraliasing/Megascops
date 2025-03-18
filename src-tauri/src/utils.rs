@@ -29,13 +29,41 @@ pub fn sample_evenly<T: Clone>(list: &[T], sample_size: usize) -> Vec<T> {
     sampled_elements
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, PartialEq, Hash)]
 pub struct FileItem {
     pub folder_id: usize,
     pub file_id: usize,
     pub file_path: PathBuf,
     #[serde(skip_serializing)]
     pub tmp_path: PathBuf,
+}
+
+impl<'de> Deserialize<'de> for FileItem {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // 创建一个临时结构体来反序列化基本字段
+        #[derive(Deserialize)]
+        struct FileItemTemp {
+            folder_id: usize,
+            file_id: usize,
+            file_path: PathBuf,
+            #[serde(default)]
+            tmp_path: Option<PathBuf>,
+        }
+        
+        // 反序列化到临时结构
+        let temp = FileItemTemp::deserialize(deserializer)?;
+        
+        // 构建完整的 FileItem，设置 tmp_path 等于 file_path
+        Ok(FileItem {
+            folder_id: temp.folder_id,
+            file_id: temp.file_id,
+            file_path: temp.file_path.clone(),
+            tmp_path: temp.tmp_path.unwrap_or_else(|| temp.file_path.clone()),
+        })
+    }
 }
 
 impl Eq for FileItem {}
@@ -75,7 +103,7 @@ fn is_skip(entry: &DirEntry) -> bool {
         .unwrap_or(false)
 }
 
-pub fn index_files_and_folders(folder_path: &PathBuf) -> HashSet<FileItem> {
+pub fn index_files_and_folders(folder_path: &PathBuf) -> Result<HashSet<FileItem>> {
     let mut folder_id: usize = 0;
     let mut file_id: usize = 0;
     let mut file_paths = HashSet::new();
@@ -85,7 +113,7 @@ pub fn index_files_and_folders(folder_path: &PathBuf) -> HashSet<FileItem> {
         .into_iter()
         .filter_entry(|e| !is_skip(e))
     {
-        let entry = entry.unwrap();
+        let entry = entry?;
         if entry.file_type().is_dir() {
             folder_id += 1;
         } else if entry.file_type().is_file() {
@@ -101,7 +129,7 @@ pub fn index_files_and_folders(folder_path: &PathBuf) -> HashSet<FileItem> {
         }
     }
 
-    file_paths
+    Ok(file_paths)
 }
 
 fn is_video_photo(path: &Path) -> bool {
