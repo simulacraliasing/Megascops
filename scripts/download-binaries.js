@@ -3,12 +3,8 @@ import path from 'path';
 import https from 'https';
 import { execSync } from 'child_process';
 import { createWriteStream, unlinkSync, statSync, readdirSync, copyFileSync } from 'fs';
-import { promisify } from 'util';
-import stream from 'stream';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
-
-const pipeline = promisify(stream.pipeline);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

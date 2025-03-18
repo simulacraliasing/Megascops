@@ -3,9 +3,9 @@
     import type { SvelteComponent } from "svelte";
 
     // 定义props
-    export let text: string; // tooltip显示的文本
-    export let component: typeof SvelteComponent | null = null; // 要包装的组件
-    export let componentProps: Record<string, any> = {}; // 传递给组件的属性
+    export let text: string;
+    export let component: typeof SvelteComponent | null = null;
+    export let componentProps: Record<string, unknown> = {};
 
     // 如果不传入组件，则可以使用slot
 </script>

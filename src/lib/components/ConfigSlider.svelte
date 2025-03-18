@@ -11,8 +11,8 @@
     export let unit = "";
 </script>
 
-<div id={id} class="flex flex-col gap-3">
-    <Label >{label}</Label>
+<div {id} class="flex flex-col gap-3">
+    <Label>{label}</Label>
     <div class="flex items-center gap-2">
         <div class="flex-grow">
             <Slider type="single" {min} {max} {step} bind:value />

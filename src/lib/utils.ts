@@ -1,8 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { dialogConfig, detectStatus, config } from "./store.svelte";
+import { dialogConfig, detectStatus, config, type Config } from "./store.svelte";
 import { open } from "@tauri-apps/plugin-dialog";
-import { init, register, getLocaleFromNavigator } from "svelte-i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
 import { Command, open as openFile } from "@tauri-apps/plugin-shell";
@@ -31,29 +30,16 @@ export const closeDialog = () => {
 	dialogConfig.description = "";
 };
 
-export const setupI18n = async () => {
-	register("en", () => import("../i18n/en.json"));
-	register("zh-CN", () => import("../i18n/zh-CN.json"));
-
-	return await Promise.allSettled([
-		init({ initialLocale: getLocaleFromNavigator(), fallbackLocale: "en" }),
-	]);
-};
-
 interface SelectOptions {
 	directory?: boolean;
 	filters?: { name: string; extensions: string[] }[];
 	title: string;
-	targetStore: { [key: string]: any };
-	targetKey: string;
 }
 
 export async function selectPath({
 	directory = false,
 	filters,
 	title,
-	targetStore,
-	targetKey
 }: SelectOptions) {
 	try {
 		const selected = await open({
@@ -64,33 +50,30 @@ export async function selectPath({
 		});
 
 		if (selected) {
-			targetStore[targetKey] = Array.isArray(selected) ? selected[0] : selected;
+			return Array.isArray(selected) ? selected[0] : selected;
 		}
+
+        return undefined;
 	} catch (err) {
 		console.error(`Failed to select ${directory ? 'folder' : 'file'}:`, err);
+        return undefined;
 	}
 }
 
 
-export const selectFolder = () => selectPath({
+export const selectFolder = async () => config.detectOptions.selectedFolder = await selectPath({
 	directory: true,
 	title: "Select Media Folder",
-	targetStore: config.detectOptions,
-	targetKey: "selectedFolder"
 });
 
-export const selectResumePath = () => selectPath({
+export const selectResumePath = async () => config.detectOptions.resumePath = await selectPath({
 	filters: [{ name: "Result file", extensions: ["json", "csv"] }],
 	title: "Select result file",
-	targetStore: config.detectOptions,
-	targetKey: "resumePath"
 });
 
-export const selectBufferFolder = () => selectPath({
+export const selectBufferFolder = async () => config.configOptions.bufferPath = await selectPath({
 	directory: true,
 	title: "Select Buffer Folder",
-	targetStore: config.configOptions,
-	targetKey: "bufferPath"
 });
 
 export function formatQuota(quota?: number): string {
@@ -155,10 +138,11 @@ export async function saveConfig() {
 export async function loadConfig() {
 	try {
 		const store = await load("store.json", { autoSave: false });
-		let config_stored = await store.get("config") as { detectOptions?: typeof config.detectOptions; configOptions?: typeof config.configOptions };
+		const config_stored = await store.get("config") as Config;
 		if (config_stored) {
-			config.detectOptions = config_stored.detectOptions || config.detectOptions;
-			config.configOptions = config_stored.configOptions || config.configOptions;
+			config.configOptions = config_stored.configOptions;
+			config.detectOptions = config_stored.detectOptions;
+			config.firstRun = config_stored.firstRun
 		}
 	} catch (err) {
 		console.error("Failed to load configuration:", err);
@@ -193,8 +177,8 @@ export async function startProcessing() {
 
 export async function organize() {
 	let command;
-	let resultFile = `${config.detectOptions.selectedFolder}/result${config.configOptions.exportFormat === "Json" ? ".json" : ".csv"}`;
-	let logFile = `${config.detectOptions.selectedFolder}/organize.log`;
+	const resultFile = `${config.detectOptions.selectedFolder}/result${config.configOptions.exportFormat === "Json" ? ".json" : ".csv"}`;
+	const logFile = `${config.detectOptions.selectedFolder}/organize.log`;
 	if (config.detectOptions.guess) {
 		command = Command.sidecar(
 			"binaries/organize",
@@ -238,9 +222,9 @@ export async function organize() {
 }
 
 export async function undo() {
-	let resultFile = `${config.detectOptions.selectedFolder}/result${config.configOptions.exportFormat === "Json" ? ".json" : ".csv"}`;
-	let logFile = `${config.detectOptions.selectedFolder}/organize.log`;
-	let command = Command.sidecar(
+	const resultFile = `${config.detectOptions.selectedFolder}/result${config.configOptions.exportFormat === "Json" ? ".json" : ".csv"}`;
+	const logFile = `${config.detectOptions.selectedFolder}/organize.log`;
+	const command = Command.sidecar(
 		"binaries/organize",
 		[
 			"--result",
@@ -276,7 +260,7 @@ export async function toggleConfig() {
 	}, 500);
 }
 
-function debounce<F extends (...args: any[]) => any>(
+function debounce<F extends (...args: unknown[]) => unknown>(
 	func: F,
 	timeout = 500,
 ): (...args: Parameters<F>) => void {
@@ -288,7 +272,7 @@ function debounce<F extends (...args: any[]) => any>(
 		}
 
 		timer = setTimeout(() => {
-			func.apply(undefined, args);
+			func(...args);
 		}, timeout);
 	};
 }
