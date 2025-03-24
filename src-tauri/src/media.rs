@@ -1,15 +1,18 @@
 use std::fs::{metadata, File};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::str;
 use std::thread;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Local};
 use crossbeam_channel::Sender;
 use fast_image_resize::{ResizeAlg, ResizeOptions, Resizer};
 use ffmpeg_sidecar::command::FfmpegCommand;
 use ffmpeg_sidecar::event::{FfmpegEvent, LogLevel};
+use ffmpeg_sidecar::ffprobe::ffprobe_path;
 use ffmpeg_sidecar::iter::FfmpegIterator;
 use image::{DynamicImage, GenericImageView, ImageReader};
 use jpeg_decoder::Decoder;
@@ -46,6 +49,7 @@ pub struct Frame {
     pub frame_index: usize,
     pub total_frames: usize,
     pub shoot_time: Option<DateTime<Local>>,
+    pub iframe: bool,
 }
 
 pub struct ErrFile {
@@ -178,6 +182,7 @@ pub fn process_image(
                     frame_index: 0,
                     total_frames: 1,
                     shoot_time,
+                    iframe: false,
                 };
                 WebpItem::Frame(frame_data)
             }
@@ -248,11 +253,53 @@ pub fn process_video(
     array_q_s: Sender<WebpItem>,
 ) -> Result<()> {
     let video_path = file.tmp_path.to_string_lossy();
+    let (orig_w, orig_h) = get_video_dimensions(&video_path)?;
     let input = create_ffmpeg_iter(&video_path, imgsz, iframe)?;
 
-    handle_ffmpeg_output(input, array_q_s, file, quality, max_frames)?;
+    handle_ffmpeg_output(
+        input, array_q_s, file, quality, max_frames, orig_w, orig_h, iframe,
+    )?;
 
     Ok(())
+}
+
+fn get_video_dimensions(video_path: &str) -> Result<(usize, usize)> {
+    let mut command = Command::new(ffprobe_path());
+
+    command.args([
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=width,height",
+        "-of",
+        "csv=s=x:p=0",
+        video_path,
+    ]);
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let output = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()?;
+
+    let dimensions = str::from_utf8(&output.stdout)?;
+    let parts: Vec<&str> = dimensions.trim().split('x').collect();
+
+    if parts.len() == 2 {
+        let width = parts[0].parse::<usize>()?;
+        let height = parts[1].parse::<usize>()?;
+        Ok((width, height))
+    } else {
+        Err(anyhow!("Invalid video dimensions: {}", dimensions))
+    }
 }
 
 fn create_ffmpeg_iter(video_path: &str, imgsz: usize, iframe: bool) -> Result<FfmpegIterator> {
@@ -288,6 +335,9 @@ fn handle_ffmpeg_output(
     file: &FileItem,
     quality: f32,
     max_frames: Option<usize>,
+    orig_w: usize,
+    orig_h: usize,
+    iframe: bool,
 ) -> Result<()> {
     let file_path = file.file_path.to_string_lossy().into_owned();
 
@@ -327,8 +377,6 @@ fn handle_ffmpeg_output(
         };
 
         //calculate ratio and padding
-        let width = frames[0].width as usize;
-        let height = frames[0].height as usize;
 
         let frames_length = sampled_frames.len();
 
@@ -342,11 +390,12 @@ fn handle_ffmpeg_output(
             let frame_data = WebpItem::Frame(Frame {
                 webp,
                 file: file.clone(),
-                width,
-                height,
+                width: orig_w,
+                height: orig_h,
                 frame_index: f.frame_num as usize,
                 total_frames: frames_length,
                 shoot_time,
+                iframe,
             });
             s.send(frame_data).expect("Send video frame failed");
         }

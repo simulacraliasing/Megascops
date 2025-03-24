@@ -30,6 +30,7 @@ pub struct ExportFrame {
     pub bboxes: Option<Vec<Bbox>>,
     pub label: Option<Vec<String>>,
     pub error: Option<String>,
+    pub iframe: bool,
 }
 
 pub fn parse_export_csv<P: AsRef<Path>>(csv: P) -> Result<Vec<ExportFrame>> {
@@ -59,6 +60,7 @@ pub fn parse_export_csv<P: AsRef<Path>>(csv: P) -> Result<Vec<ExportFrame>> {
                     .map(|s| s.to_string())
                     .collect(),
             ),
+            iframe: frame[6].parse::<_>()?,
             error: Some(frame[9].to_string()),
         };
         export_data.push(frame_item);

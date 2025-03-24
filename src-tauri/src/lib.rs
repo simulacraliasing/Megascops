@@ -230,12 +230,13 @@ async fn process(config: Config, progress_sender: crossbeam_channel::Sender<usiz
                         frame_index: frame.frame_index,
                         shoot_time: frame.shoot_time.map(|t| t.to_string()),
                         total_frames: frame.total_frames,
+                        iframe: frame.iframe,
                         bboxes: None,
                         label: None,
                         error: None,
                     };
                     frames_clone.lock().unwrap().insert(uuid.clone(), export_frame);
-                    yield DetectRequest { uuid, image: frame.webp, width: frame.width as i32, height: frame.height as i32, iou: config.config_options.iou_threshold, score: config.config_options.confidence_threshold };
+                    yield DetectRequest { uuid, image: frame.webp, width: frame.width as i32, height: frame.height as i32, iou: config.config_options.iou_threshold, score: config.config_options.confidence_threshold, iframe:frame.iframe };
                 }
                 WebpItem::ErrFile(file) => {
                     export_q_s_clone.send(ExportFrame {
@@ -243,6 +244,7 @@ async fn process(config: Config, progress_sender: crossbeam_channel::Sender<usiz
                         frame_index: 0,
                         shoot_time: None,
                         total_frames: 0,
+                        iframe: false,
                         bboxes: None,
                         label: None,
                         error: Some(file.error.to_string()),
