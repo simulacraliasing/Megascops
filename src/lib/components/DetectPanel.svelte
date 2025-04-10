@@ -64,13 +64,10 @@
             const elapsed = Math.floor((Date.now() - startTime!) / 1000);
             elapsedTime = formatTime(elapsed);
 
-            // 计算剩余时间
             const currentProgress = detectStatus.progress;
             if (currentProgress > 0 && currentProgress > lastProgress) {
-                // 计算处理速度 (进度百分比/秒)
                 const progressRate = currentProgress / elapsed;
                 if (progressRate > 0) {
-                    // 计算剩余秒数
                     const remainingSeconds = Math.max(
                         0,
                         Math.floor((100 - currentProgress) / progressRate),
@@ -264,7 +261,7 @@
                     style="width: {detectStatus.progress}%"
                 >
                     <span class="text-xs font-medium text-primary-foreground">
-                        {Math.round(detectStatus.progress)}%
+                        {detectStatus.progress.toFixed(2)}%
                     </span>
                 </div>
             </div>

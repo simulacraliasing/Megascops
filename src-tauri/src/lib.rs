@@ -492,7 +492,7 @@ async fn process_media(app: AppHandle, config: Config) {
         for _ in progress_receiver.iter() {
             progress += 1.0 / total_files as f32 * 100.0;
             app_clone
-                .emit("detect-progress", progress as usize)
+                .emit("detect-progress", progress)
                 .unwrap();
         }
     });

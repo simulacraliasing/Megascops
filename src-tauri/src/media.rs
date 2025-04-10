@@ -7,7 +7,7 @@ use std::thread;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, TimeZone};
 use crossbeam_channel::Sender;
 use fast_image_resize::{ResizeAlg, ResizeOptions, Resizer};
 use ffmpeg_sidecar::command::FfmpegCommand;
@@ -16,7 +16,7 @@ use ffmpeg_sidecar::ffprobe::ffprobe_path;
 use ffmpeg_sidecar::iter::FfmpegIterator;
 use image::{DynamicImage, GenericImageView, ImageReader};
 use jpeg_decoder::Decoder;
-use nom_exif::{Exif, ExifIter, ExifTag, MediaParser, MediaSource};
+use nom_exif::{EntryValue, Exif, ExifIter, ExifTag, MediaParser, MediaSource};
 use thiserror::Error;
 use webp::Encoder;
 
@@ -165,7 +165,14 @@ pub fn process_image(
             let shoot_time: Option<DateTime<Local>> =
                 match get_image_date(parser, file.tmp_path.as_path()) {
                     Ok(shoot_time) => Some(shoot_time),
-                    Err(_e) => None,
+                    Err(_e) => {
+                        log::error!(
+                            "Failed to get {} shoot time error: {}",
+                            file.file_path.display(),
+                            _e
+                        );
+                        None
+                    }
                 };
             if webp.is_none() {
                 WebpItem::ErrFile(ErrFile {
@@ -405,15 +412,27 @@ fn handle_ffmpeg_output(
 
 fn get_image_date(parser: &mut MediaParser, image: &Path) -> Result<DateTime<Local>> {
     let ms = MediaSource::file_path(image)?;
-
     let iter: ExifIter = parser.parse(ms)?;
     let exif: Exif = iter.into();
-    let shoot_time = exif
+    let shoot_time_tag = exif
         .get(ExifTag::DateTimeOriginal)
         .or_else(|| exif.get(ExifTag::ModifyDate))
         .context("Neither DateTimeOriginal nor ModifyDate found")?;
-    let shoot_time = shoot_time.as_time().unwrap().with_timezone(&Local);
 
+    let shoot_time = match shoot_time_tag {
+        EntryValue::Time(time) => time.with_timezone(&Local),
+        EntryValue::NaiveDateTime(time) => {
+            Local.from_local_datetime(&time).single().ok_or_else(|| {
+                anyhow::anyhow!("Ambiguous local time for image: {}", image.display())
+            })?
+        }
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Unexpected EXIF time data format for image: {}",
+                image.display()
+            ))
+        }
+    };
     Ok(shoot_time)
 }
 
