@@ -260,7 +260,21 @@ pub fn process_video(
     array_q_s: Sender<WebpItem>,
 ) -> Result<()> {
     let video_path = file.tmp_path.to_string_lossy();
-    let (orig_w, orig_h) = get_video_dimensions(&video_path)?;
+    let (orig_w, orig_h) = match get_video_dimensions(&video_path) {
+        Ok(dim) => dim,
+        Err(e) => {
+            let error = anyhow!(e).context("Failed to get video dimensions");
+            log::error!("{}", error);
+            let err_file = WebpItem::ErrFile(ErrFile {
+                file: file.clone(),
+                error,
+            });
+            array_q_s
+                .send(err_file)
+                .context("Failed to send dimension error")?;
+            return Ok(());
+        }
+    };
     let input = create_ffmpeg_iter(&video_path, imgsz, iframe)?;
 
     handle_ffmpeg_output(
@@ -305,7 +319,11 @@ fn get_video_dimensions(video_path: &str) -> Result<(usize, usize)> {
         let height = parts[1].parse::<usize>()?;
         Ok((width, height))
     } else {
-        Err(anyhow!("Invalid video dimensions: {}", dimensions))
+        Err(anyhow!(
+            "Invalid video dimensions: {}, video path: {}",
+            dimensions,
+            video_path
+        ))
     }
 }
 
