@@ -1,10 +1,12 @@
-export const dialogConfig =
-    $state({
-        isOpen: false,
-        title: "",
-        description: "",
-    }
-    );
+import { getVersion } from "@tauri-apps/api/app";
+
+export const appVersion = await getVersion();
+
+export const dialogConfig = $state({
+    isOpen: false,
+    title: "",
+    description: "",
+});
 
 export const detectStatus = $state({
     progress: 0,
@@ -64,5 +66,5 @@ export const config = $state<Config>({
         maxFrames: 3,
         iframeOnly: true,
     },
-    firstRun: true
-})
+    firstRun: true,
+});
