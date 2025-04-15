@@ -148,7 +148,7 @@
 
             <div class="col-span-full flex justify-end items-center gap-2 mt-2">
                 <span class="text-xs text-muted-foreground">
-                    v{appVersion}
+                    v{appVersion.value}
                 </span>
             </div>
         </div>

@@ -14,9 +14,15 @@
         openSelectedFolder,
         saveConfig,
     } from "$lib/utils";
-    import { dialogConfig, detectStatus, config } from "$lib/store.svelte";
+    import {
+        dialogConfig,
+        detectStatus,
+        config,
+        appVersion,
+    } from "$lib/store.svelte";
     import { DetectPanel, ConfigPanel } from "$lib/components";
     import { startTour } from "$lib/tour";
+    import { getVersion } from "@tauri-apps/api/app";
 
     listen<boolean>("health-status", (event) => {
         let status = event.payload;
@@ -65,6 +71,7 @@
     });
 
     onMount(async () => {
+        appVersion.value = await getVersion();
         await loadConfig();
         checkHealth();
         if (config.firstRun) {

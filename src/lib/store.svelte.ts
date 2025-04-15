@@ -1,6 +1,4 @@
-import { getVersion } from "@tauri-apps/api/app";
-
-export const appVersion = await getVersion();
+export const appVersion = $state({ value: "" });
 
 export const dialogConfig = $state({
     isOpen: false,
