@@ -178,7 +178,12 @@ export async function startProcessing() {
             proceed = false; 
             const shouldOverwrite = await confirm(
                 $format("dialog.message.resultFileExists", { values: { resultFileName } }),
-                { title: $format("dialog.title.resultFileExists"), kind: "warning", okLabel: $format("dialog.button.overwrite"), cancelLabel: $format("dialog.button.no") }
+                {
+                    title: $format("dialog.title.resultFileExists"), 
+                    kind: "warning", 
+                    okLabel: $format("dialog.button.overwrite"), 
+                    cancelLabel: $format("dialog.button.no") 
+                }
             );
 
             if (shouldOverwrite) {
@@ -188,7 +193,12 @@ export async function startProcessing() {
             } else {
                 const shouldResume = await ask(
                     $format("dialog.message.resumeFromCheckpoint", { values: { resultFileName } }),
-                    { title: $format("dialog.title.resume"), kind: "info", okLabel: $format("dialog.button.resume"), cancelLabel: $format("dialog.button.cancel") }
+                    {
+                        title: $format("dialog.title.resume"),
+                        kind: "info",
+                        okLabel: $format("dialog.button.resume"),
+                        cancelLabel: $format("dialog.button.cancel")
+                    }
                 );
 
                 if (shouldResume) {
