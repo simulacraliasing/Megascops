@@ -171,7 +171,8 @@ export async function startProcessing() {
     let useResume = false;
 
     try {
-        const fileExists = await exists(resultFilePath);
+        // const fileExists = await exists(resultFilePath);
+        const fileExists = await invoke<boolean>("check_path_exists", { pathStr: resultFilePath });
 
         if (fileExists) {
             proceed = false; 
