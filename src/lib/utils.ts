@@ -176,8 +176,8 @@ export async function startProcessing() {
         if (fileExists) {
             proceed = false; 
             const shouldOverwrite = await confirm(
-                `The result file '${resultFileName}' already exists. Overwrite?\n\n(Choosing 'No' will prompt to resume instead.)`,
-                { title: "Existing Result File Found", kind: "warning", okLabel: "Overwrite", cancelLabel: "No" }
+                $format("dialog.message.resultFileExists", { values: { resultFileName } }),
+                { title: $format("dialog.title.resultFileExists"), kind: "warning", okLabel: $format("dialog.button.overwrite"), cancelLabel: $format("dialog.button.no") }
             );
 
             if (shouldOverwrite) {
@@ -186,8 +186,8 @@ export async function startProcessing() {
                 console.log("User chose to overwrite existing result file.");
             } else {
                 const shouldResume = await ask(
-                    `Use the existing '${resultFileName}' as a checkpoint and resume processing?`,
-                    { title: "Resume Processing?", kind: "info", okLabel: "Resume", cancelLabel: "Cancel Run" }
+                    $format("dialog.message.resumeFromCheckpoint", { values: { resultFileName } }),
+                    { title: $format("dialog.title.resume"), kind: "info", okLabel: $format("dialog.button.resume"), cancelLabel: $format("dialog.button.cancel") }
                 );
 
                 if (shouldResume) {
@@ -196,7 +196,7 @@ export async function startProcessing() {
                     useResume = true; 
                     console.log("(User) Resume using existing result file.");
                 } else {
-                    showDialog("Operation Cancelled", "Processing was cancelled by the user.");
+                    showDialog($format("dialog.title.cancel"), $format("dialog.message.userCancel"));
                     console.log("(User) Cancelled processing.");
                     return;
                 }
