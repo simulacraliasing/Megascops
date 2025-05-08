@@ -6,10 +6,11 @@ import {
     config,
     type Config,
 } from "./store.svelte";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, confirm, ask } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { load } from "@tauri-apps/plugin-store";
 import { Command, open as openFile } from "@tauri-apps/plugin-shell";
+import { exists, BaseDirectory } from "@tauri-apps/plugin-fs";
 import { unwrapFunctionStore, format } from "svelte-i18n";
 
 const $format = unwrapFunctionStore(format);
@@ -163,28 +164,94 @@ export async function startProcessing() {
         return;
     }
 
-    config.detectOptions.resumePath =
-        config.detectOptions.resumePath?.trim() || null;
+    const resultFileName = `result.${config.configOptions.exportFormat === "Json" ? "json" : "csv"}`;
+    const resultFilePath = `${config.detectOptions.selectedFolder}/${resultFileName}`;
 
-    config.configOptions.bufferPath =
-        config.configOptions.bufferPath?.trim() || null;
-
-    await saveConfig();
-
-    detectStatus.isProcessing = true;
-    detectStatus.progress = 0;
+    let proceed = true;
+    let useResume = false;
 
     try {
-        console.log("Starting processing with config:", config);
+        // const fileExists = await exists(resultFilePath);
+        const fileExists = await invoke<boolean>("check_path_exists", { pathStr: resultFilePath });
 
-        await invoke("process_media", {
-            config,
-        });
+        if (fileExists) {
+            proceed = false; 
+            const shouldOverwrite = await confirm(
+                $format("dialog.message.resultFileExists", { values: { resultFileName } }),
+                {
+                    title: $format("dialog.title.resultFileExists"), 
+                    kind: "warning", 
+                    okLabel: $format("dialog.button.overwrite"), 
+                    cancelLabel: $format("dialog.button.no") 
+                }
+            );
 
-        console.log("Processing complete");
+            if (shouldOverwrite) {
+                config.detectOptions.resumePath = null;
+                proceed = true;
+                console.log("User chose to overwrite existing result file.");
+            } else {
+                const shouldResume = await ask(
+                    $format("dialog.message.resumeFromCheckpoint", { values: { resultFileName } }),
+                    {
+                        title: $format("dialog.title.resume"),
+                        kind: "info",
+                        okLabel: $format("dialog.button.resume"),
+                        cancelLabel: $format("dialog.button.cancel")
+                    }
+                );
+
+                if (shouldResume) {
+                    config.detectOptions.resumePath = resultFilePath; 
+                    proceed = true;
+                    useResume = true; 
+                    console.log("(User) Resume using existing result file.");
+                } else {
+                    showDialog($format("dialog.title.cancel"), $format("dialog.message.userCancel"));
+                    console.log("(User) Cancelled processing.");
+                    return;
+                }
+            }
+        } else {
+            if (!config.detectOptions.resumePath?.trim()) {
+                config.detectOptions.resumePath = null;
+            }
+            proceed = true;
+        }
+
     } catch (err) {
-        console.error("Processing failed:", err);
-        detectStatus.isProcessing = false;
+        console.error("Error checking for existing result file:", err);
+        showDialog($format("dialog.title.Error"), `Error checking for existing result file: ${err}.`);
+        proceed = true;
+        if (!useResume) {
+            config.detectOptions.resumePath = null;
+        }
+    }
+    
+    if (proceed) {
+        config.detectOptions.resumePath =
+            config.detectOptions.resumePath?.trim() || null;
+
+        config.configOptions.bufferPath =
+            config.configOptions.bufferPath?.trim() || null;
+
+        await saveConfig();
+
+        detectStatus.isProcessing = true;
+        detectStatus.progress = 0;
+
+        try {
+            console.log("Starting processing with config:", config);
+
+            await invoke("process_media", {
+                config,
+            });
+
+            console.log("Processing complete");
+        } catch (err) {
+            console.error("Processing failed:", err);
+            detectStatus.isProcessing = false;
+        }
     }
 }
 

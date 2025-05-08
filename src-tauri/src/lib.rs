@@ -467,6 +467,12 @@ async fn check_quota(app: AppHandle, grpc_url: String, token: String) {
 }
 
 #[tauri::command]
+async fn check_path_exists(path_str: String) -> Result<bool, String> {
+    let path = std::path::PathBuf::from(path_str);
+    Ok(path.exists())
+}
+
+#[tauri::command]
 async fn process_media(app: AppHandle, config: Config) {
     let (progress_sender, progress_receiver) = crossbeam_channel::bounded(5);
 
@@ -526,7 +532,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             process_media,
             check_health,
-            check_quota
+            check_quota,
+            check_path_exists,
         ])
         .setup(|app| {
             let _ = app.store("store.json")?;
